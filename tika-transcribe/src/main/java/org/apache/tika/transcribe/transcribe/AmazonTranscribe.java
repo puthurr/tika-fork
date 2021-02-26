@@ -55,7 +55,7 @@ public class AmazonTranscribe implements Transcriber {
      */
     @Override
     public String transcribe(String filepath) throws TikaException, IOException {
-        if (!this.isAvailable)
+        if (!isAvailable())
 			return "";
         //TODO
         return null;
@@ -71,7 +71,7 @@ public class AmazonTranscribe implements Transcriber {
      */
     @Override
     public String transcribe(String filepath, String sourceLanguage) throws TikaException, IOException {
-        if (!this.isAvailable)
+        if (!isAvailable())
 			return "";
 
         boolean validSourceLanguageFlag = validSourceLanguages.contains(sourceLanguage); // Tracks if we have seen the input sourceLanguage in validSourceLanguages
