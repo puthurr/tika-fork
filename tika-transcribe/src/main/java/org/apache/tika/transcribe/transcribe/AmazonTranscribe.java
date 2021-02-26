@@ -73,8 +73,8 @@ public class AmazonTranscribe implements Transcriber {
     public String transcribe(String filepath, String sourceLanguage) throws TikaException, IOException {
         if (!isAvailable())
 			return "";
-
-        boolean validSourceLanguageFlag = validSourceLanguages.contains(sourceLanguage); // Tracks if we have seen the input sourceLanguage in validSourceLanguages
+(
+        boolean validSourceLanguageFlag = validSourceLanguages.contains(sourceLanguage); // Checks if sourceLanguage in validSourceLanguages O(1) lookup time
 
         if (!validSourceLanguageFlag) { // Throws TikaException if the input sourceLanguage is not present in validSourceLanguages
             throw new TikaException("Provided Source Language is Not Valid. Please use one of: " +
@@ -83,6 +83,9 @@ public class AmazonTranscribe implements Transcriber {
         return null;
     }
 
+    /**
+     * @return Valid AWS Credentials
+     */
 	public boolean isAvailable() {
 		return this.isAvailable;
 	}
