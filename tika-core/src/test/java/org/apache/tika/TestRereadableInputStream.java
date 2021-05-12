@@ -123,7 +123,7 @@ public class TestRereadableInputStream {
     /**
      * Adds isClosed() to a BufferedInputStream.
      */
-    class TestInputStream extends BufferedInputStream {
+    static class TestInputStream extends BufferedInputStream {
 
         private boolean closed;
 
