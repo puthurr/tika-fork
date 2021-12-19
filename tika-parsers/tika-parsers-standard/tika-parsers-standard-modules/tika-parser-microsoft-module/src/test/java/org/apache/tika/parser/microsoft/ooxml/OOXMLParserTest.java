@@ -398,12 +398,9 @@ public class OOXMLParserTest extends MultiThreadedTikaTest {
         xml = result.xml;
 
         // Images 2-4 (there is no 1!)
-        assertTrue(xml.contains("<img src=\"embedded:image2.png\" alt=\"A description...\" />"),
-                "Image not found in:\n" + xml);
-        assertTrue(xml.contains("<img src=\"embedded:image3.jpeg\" alt=\"A description...\" />"),
-                "Image not found in:\n" + xml);
-        assertTrue(xml.contains("<img src=\"embedded:image4.png\" alt=\"A description...\" />"),
-                "Image not found in:\n" + xml);
+        assertTrue(xml.contains("src=\"image-00000-00002.png\""),"Image not found in:\n" + xml);
+        assertTrue(xml.contains("src=\"image-00000-00003.jpeg\""),"Image not found in:\n" + xml);
+        assertTrue(xml.contains("src=\"image-00000-00004.png\""),"Image not found in:\n" + xml);
 
         // Text too
         assertTrue(xml.contains("<p>The end!</p>"));
@@ -877,9 +874,10 @@ public class OOXMLParserTest extends MultiThreadedTikaTest {
     @Test
     public void testEmbeddedZipInPPTX() throws Exception {
         String xml = getXML("test_embedded_zip.pptx").xml;
-        int h = xml.indexOf("<div class=\"embedded\" id=\"slide1_rId3\" />");
+        //PUTHURR The first embedded object is an image
+        int h = xml.indexOf("<img class=\"embedded\" id=\"slide1_rId3\"");
         int i = xml.indexOf("Send me a note");
-        int j = xml.indexOf("<div class=\"embedded\" id=\"slide2_rId4\" />");
+        int j = xml.indexOf("<div class=\"embedded\" id=\"slide2_rId4\"");
         int k = xml.indexOf("<p>No title</p>");
         assertTrue(h != -1);
         assertTrue(i != -1);
@@ -950,8 +948,8 @@ public class OOXMLParserTest extends MultiThreadedTikaTest {
     @Test
     public void testEmbeddedPPTXTwoSlides() throws Exception {
         String xml = getXML("testPPT_embedded_two_slides.pptx").xml;
-        assertContains("<div class=\"embedded\" id=\"slide1_rId7\" />", xml);
-        assertContains("<div class=\"embedded\" id=\"slide2_rId7\" />", xml);
+        assertContains("<div class=\"embedded\" id=\"slide1_rId7\"", xml);
+        assertContains("<div class=\"embedded\" id=\"slide2_rId7\"", xml);
     }
 
     /**
@@ -1046,9 +1044,8 @@ public class OOXMLParserTest extends MultiThreadedTikaTest {
     @Test
     public void testPPTXThumbnail() throws Exception {
         String xml = getXML("testPPTX_Thumbnail.pptx").xml;
-        int a = xml.indexOf(
-                "<body><div class=\"slide-content\"><p>This file contains an embedded thumbnail");
-        int b = xml.indexOf("<div class=\"embedded\" id=\"/docProps/thumbnail.jpeg\" />");
+        int a = xml.indexOf("<div class=\"slide-content\"><p>This file contains an embedded thumbnail");
+        int b = xml.indexOf("<div class=\"embedded\" id=\"/docProps/thumbnail.jpeg\"");
         assertTrue(a != -1);
         assertTrue(b != -1);
         assertTrue(a < b);
@@ -1627,7 +1624,7 @@ public class OOXMLParserTest extends MultiThreadedTikaTest {
         assertContains("smart1", content);
         assertContains("MyTitle", content);
 
-        assertEquals("/image1.jpg",
+        assertEquals("/image-00002-00001.jpg",
                 metadataList.get(1).get(TikaCoreProperties.EMBEDDED_RESOURCE_PATH));
 
         assertEquals("/thumbnail.jpeg",

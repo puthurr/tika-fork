@@ -40,6 +40,7 @@ import org.apache.poi.xslf.usermodel.XSLFGroupShape;
 import org.apache.poi.xslf.usermodel.XSLFHyperlink;
 import org.apache.poi.xslf.usermodel.XSLFNotes;
 import org.apache.poi.xslf.usermodel.XSLFNotesMaster;
+import org.apache.poi.xslf.usermodel.XSLFPictureData;
 import org.apache.poi.xslf.usermodel.XSLFPictureShape;
 import org.apache.poi.xslf.usermodel.XSLFRelation;
 import org.apache.poi.xslf.usermodel.XSLFShape;
@@ -96,35 +97,47 @@ public class XSLFPowerPointExtractorDecorator extends AbstractOOXMLExtractor {
             } else {
                 slideDesc = null;
             }
+            AttributesImpl attributes = new AttributesImpl();
+            attributes.addAttribute("", "class", "class", "CDATA", "slide");
+            try {
+                attributes.addAttribute("", "id", "id", "CDATA", String.valueOf(slide.getSlideNumber()));
+                if (slide.getTitle() != null)
+                    attributes.addAttribute("", "title", "title", "CDATA", slide.getTitle().trim());
+            } catch (Exception e) {
+                // Do Nothing
+            }
+            xhtml.startElement("div", attributes);
 
             // slide content
             xhtml.startElement("div", "class", "slide-content");
-            extractContent(slide.getShapes(), false, xhtml, slideDesc);
+            extractContent(slide.getShapes(), false, xhtml, slide.getSlideNumber(), slideDesc);
             xhtml.endElement("div");
 
             if (config.isIncludeSlideMasterContent()) {
                 // slide layout which is the master sheet for this slide
                 xhtml.startElement("div", "class", "slide-master-content");
                 XSLFSlideLayout slideLayout = slide.getMasterSheet();
-                extractContent(slideLayout.getShapes(), true, xhtml, null);
-                xhtml.endElement("div");
+                extractContent(slideLayout.getShapes(), true, xhtml, slide.getSlideNumber(), null);
 
                 // slide master which is the master sheet for all text layouts
                 XSLFSheet slideMaster = slideLayout.getMasterSheet();
-                extractContent(slideMaster.getShapes(), true, xhtml, null);
+                extractContent(slideMaster.getShapes(), true, xhtml, slide.getSlideNumber(), null);
+
+                //Bound the master content data into a single div
+                xhtml.endElement("div");
             }
             if (config.isIncludeSlideNotes()) {
                 // notes (if present)
                 XSLFNotes slideNotes = slide.getNotes();
                 if (slideNotes != null) {
-                    xhtml.startElement("div", "class", "slide-notes");
+                    xhtml.startElement("div", "class", "slide-notes-content");
 
-                    extractContent(slideNotes.getShapes(), false, xhtml, slideDesc);
+                    extractContent(slideNotes.getShapes(), false, xhtml, slide.getSlideNumber(), slideDesc);
 
                     // master sheet for this notes
                     XSLFNotesMaster notesMaster = slideNotes.getMasterSheet();
                     if (notesMaster != null) {
-                        extractContent(notesMaster.getShapes(), true, xhtml, null);
+                        extractContent(notesMaster.getShapes(), true, xhtml, slide.getSlideNumber(), null);
                     }
                     xhtml.endElement("div");
                 }
@@ -171,11 +184,13 @@ public class XSLFPowerPointExtractorDecorator extends AbstractOOXMLExtractor {
                     new OOXMLWordAndPowerPointTextHandler(new OOXMLTikaBodyPartHandler(xhtml),
                             new HashMap<>()//empty
                     ));
+            // Slide complete
+            xhtml.endElement("div");
         }
     }
 
     private void extractContent(List<? extends XSLFShape> shapes, boolean skipPlaceholders,
-                                XHTMLContentHandler xhtml, String slideDesc) throws SAXException {
+                                XHTMLContentHandler xhtml, int slideNumber, String slideDesc) throws SAXException {
         for (XSLFShape sh : shapes) {
 
             if (sh instanceof XSLFTextShape) {
@@ -212,14 +227,15 @@ public class XSLFPowerPointExtractorDecorator extends AbstractOOXMLExtractor {
             } else if (sh instanceof XSLFGroupShape) {
                 // recurse into groups of shapes
                 XSLFGroupShape group = (XSLFGroupShape) sh;
-                extractContent(group.getShapes(), skipPlaceholders, xhtml, slideDesc);
+                extractContent(group.getShapes(), skipPlaceholders, xhtml, slideNumber, slideDesc);
             } else if (sh instanceof XSLFTable) {
                 //unlike tables in Word, ppt/x can't have recursive tables...I don't think
                 extractTable((XSLFTable) sh, xhtml);
             } else if (sh instanceof XSLFGraphicFrame) {
                 XSLFGraphicFrame frame = (XSLFGraphicFrame) sh;
                 XmlObject[] sp = frame.getXmlObject().selectPath(
-                        "declare namespace p='http://schemas.openxmlformats.org/presentationml/2006/main' .//*/p:oleObj");
+                        "declare namespace p='http://schemas.openxmlformats.org/presentationml/2006/main' " +
+                                ".//*/p:oleObj");
                 if (sp != null) {
                     for (XmlObject emb : sp) {
                         XmlObject relIDAtt = emb.selectAttribute(new QName(
@@ -240,6 +256,7 @@ public class XSLFPowerPointExtractorDecorator extends AbstractOOXMLExtractor {
                 }
             } else if (sh instanceof XSLFPictureShape) {
                 if (!skipPlaceholders && (sh.getXmlObject() instanceof CTPicture)) {
+                    XSLFPictureShape img = (XSLFPictureShape) sh;
                     CTPicture ctPic = ((CTPicture) sh.getXmlObject());
                     if (ctPic.getBlipFill() != null && ctPic.getBlipFill().getBlip() != null) {
                         String relID = ctPic.getBlipFill().getBlip().getEmbed();
@@ -250,8 +267,42 @@ public class XSLFPowerPointExtractorDecorator extends AbstractOOXMLExtractor {
                             AttributesImpl attributes = new AttributesImpl();
                             attributes.addAttribute("", "class", "class", "CDATA", "embedded");
                             attributes.addAttribute("", "id", "id", "CDATA", relID);
-                            xhtml.startElement("div", attributes);
-                            xhtml.endElement("div");
+                            //PUTHURR
+                            XSLFPictureData imgdata = null;
+                            try {
+                                imgdata = img.getPictureData();
+                            } catch (NullPointerException e) {
+                                continue;
+                            }
+
+                            if (imgdata != null) {
+                                try {
+                                    if (imgdata.getContentType() != null) {
+                                        attributes.addAttribute("", "contenttype", "contenttype", "CDATA",
+                                                imgdata.getContentType());
+//                                        String ext = getTikaConfig().getMimeRepository().forName(imgdata
+//                                        .getContentType()).getExtension();
+                                        attributes.addAttribute("", "src", "src", "CDATA",
+                                                getImageResourceName(slideNumber, imgdata.getFileName(),
+                                                        imgdata.getContentType()));
+                                        attributes.addAttribute("", "alt", "alt", "CDATA", imgdata.getFileName());
+                                    }
+                                    if (img.getShapeName() != null) {
+                                        attributes.addAttribute("", "title", "title", "CDATA", img.getShapeName());
+                                    }
+                                    attributes.addAttribute("", "width", "witdh", "CDATA",
+                                            String.valueOf(imgdata.getImageDimensionInPixels().width));
+                                    attributes.addAttribute("", "height", "height", "CDATA",
+                                            String.valueOf(imgdata.getImageDimensionInPixels().height));
+                                    attributes.addAttribute("", "size", "size", "CDATA",
+                                            String.valueOf(imgdata.getData().length));
+                                } catch (Exception e) {
+                                    // Do Nothing
+                                }
+                            }
+
+                            xhtml.startElement("img", attributes);
+                            xhtml.endElement("img");
                         }
                     }
                 }

@@ -92,7 +92,7 @@ public class POIContainerExtractionTest extends AbstractPOIContainerExtractionTe
         assertEquals(1, handler.filenames.size());
         assertEquals(1, handler.mediaTypes.size());
 
-        assertEquals("image1.png", handler.filenames.get(0));
+        assertEquals("image-00000-00001.png", handler.filenames.get(0));
         assertEquals(TYPE_PNG, handler.mediaTypes.get(0));
 
 
@@ -101,9 +101,9 @@ public class POIContainerExtractionTest extends AbstractPOIContainerExtractionTe
         assertEquals(3, handler.filenames.size());
         assertEquals(3, handler.mediaTypes.size());
 
-        assertEquals("image1.png", handler.filenames.get(0));
-        assertEquals("image2.jpg", handler.filenames.get(1));
-        assertEquals("image3.png", handler.filenames.get(2));
+        assertEquals("image-00000-00001.png", handler.filenames.get(0));
+        assertEquals("image-00000-00002.jpg", handler.filenames.get(1));
+        assertEquals("image-00000-00003.png", handler.filenames.get(2));
         assertEquals(TYPE_PNG, handler.mediaTypes.get(0));
         assertEquals(TYPE_JPG, handler.mediaTypes.get(1));
         assertEquals(TYPE_PNG, handler.mediaTypes.get(2));
@@ -116,7 +116,7 @@ public class POIContainerExtractionTest extends AbstractPOIContainerExtractionTe
         TrackingHandler handler;
 
         handler = process("EmbeddedDocument.docx", extractor, false);
-        assertTrue(handler.filenames.contains("Microsoft_Office_Excel_97-2003_Worksheet1.bin"));
+        assertTrue(handler.filenames.contains("Microsoft_Office_Excel_-_Worksheet-00000-9720031.bin"));
         assertEquals(2, handler.filenames.size());
     }
 

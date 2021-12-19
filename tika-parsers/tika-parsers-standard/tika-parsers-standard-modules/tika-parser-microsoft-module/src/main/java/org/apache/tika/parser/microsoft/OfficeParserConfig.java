@@ -16,10 +16,11 @@
  */
 package org.apache.tika.parser.microsoft;
 
-
 import java.io.Serializable;
 
-public class OfficeParserConfig implements Serializable {
+import org.apache.tika.parser.config.AbstractParserConfig;
+
+public class OfficeParserConfig extends AbstractParserConfig implements Serializable {
 
     private boolean extractMacros = false;
 
@@ -38,11 +39,15 @@ public class OfficeParserConfig implements Serializable {
 
     private String dateOverrideFormat = null;
 
-    /**
-     * @return whether or not to extract macros
-     */
-    public boolean isExtractMacros() {
-        return extractMacros;
+    // PUTHURR
+    private boolean includeSlideShowEmbeddedResources = true;
+
+    public boolean isIncludeSlideShowEmbeddedResources() {
+        return includeSlideShowEmbeddedResources;
+    }
+
+    public void setIncludeSlideShowEmbeddedResources(boolean includeSlideShowEmbeddedResources) {
+        this.includeSlideShowEmbeddedResources = includeSlideShowEmbeddedResources;
     }
 
     /**
@@ -53,6 +58,14 @@ public class OfficeParserConfig implements Serializable {
      */
     public void setExtractMacros(boolean extractMacros) {
         this.extractMacros = extractMacros;
+    }
+
+    /**
+     *
+     * @return whether or not to extract macros
+     */
+    public boolean isExtractMacros() {
+        return extractMacros;
     }
 
     public boolean isIncludeDeletedContent() {

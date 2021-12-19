@@ -29,6 +29,7 @@ import org.apache.pdfbox.rendering.ImageType;
 import org.apache.pdfbox.text.PDFTextStripper;
 
 import org.apache.tika.exception.TikaException;
+import org.apache.tika.parser.config.AbstractParserConfig;
 
 /**
  * Config for PDFParser.
@@ -40,7 +41,7 @@ import org.apache.tika.exception.TikaException;
  * </ol>
  * <p/>
  */
-public class PDFParserConfig implements Serializable {
+public class PDFParserConfig extends AbstractParserConfig implements Serializable {
 
 
     private static final long serialVersionUID = 6492570218190936986L;
@@ -136,6 +137,43 @@ public class PDFParserConfig implements Serializable {
     boolean isExtractInlineImageMetadataOnly() {
         return extractInlineImageMetadataOnly;
     }
+
+
+    /* region puthurr */
+
+    // Extract all PDF pages as images.
+    private boolean allPagesAsImages = false;
+
+    // Extract the first page as image for creating a PDF cover
+    private boolean firstPageAsCoverImage = false;
+
+    // Some single page PDF are actual scanned image but different scanners
+    // may create graphics or separate the image from the text themselves.
+    // This flag will convert the single page PDF into a single image. regardless of embedded images.
+    private boolean singlePagePDFAsImage = false;
+
+    // striped-scanned images
+    // Old PDF writer could output a scan page by striping the image into multiple streams.
+    // We want to avoid outputting too many useless images in that case.
+    private boolean stripedImagesHandling = false;
+    // Default : an Array of 5 Streams in a page will force the conversion to an image.
+    private int stripedImagesThreshold = 5;
+
+    // Graphical objects can overlay background images (i.e. circle, highlights). This flag would allow to convert
+    // the entire page as image to retain all graphical elements.
+    // Graphics check or not
+    private boolean graphicsToImage = false;
+    // If we check for Graphics objects : default threshold = we see one image and one curve.
+    private int graphicsToImageThreshold = 100001;
+
+    // JB2 Images aren't supported by many post-processing tools. This flag would allow to convert
+    // the entire page as image if any JB2 formatted images is found.
+    private boolean jB2Images = false;
+    // default threshold = we see one JB2 image.
+    private int jB2ImagesThreshold = 1;
+
+    // end region puthurr
+
 
     /**
      * Use this when you want to know how many images of what formats are in a PDF
@@ -289,7 +327,7 @@ public class PDFParserConfig implements Serializable {
      * would expect given the appearance of the PDF.
      * <p/>
      * Set to <code>true</code> only with the greatest caution.
-     *
+     * <p>
      * The default is <code>false</code>.
      * <p/>
      *
@@ -527,8 +565,7 @@ public class PDFParserConfig implements Serializable {
                 if (matcher.group(3) != null) {
                     // If we have the percent sign, then convert
                     if (unmappedUnicodeCharsPerPage > 100.0) {
-                        throw new IllegalArgumentException
-                        ("Error parsing OCRStrategyAuto - Percent cannot exceed 100%");
+                        throw new IllegalArgumentException ("Error parsing OCRStrategyAuto Percent cannot exceed 100%");
                     }
                     unmappedUnicodeCharsPerPage = unmappedUnicodeCharsPerPage / 100f;
                 }
@@ -785,6 +822,135 @@ public class PDFParserConfig implements Serializable {
         }
         return updated;
     }
+    /* region PUTHURR */
+
+    /**
+     * @return allPagesAsImages
+     */
+    public boolean getAllPagesAsImages() {
+        return allPagesAsImages;
+    }
+
+    /**
+     * Set the flag to extract all pages in a PDF as images.
+     */
+    public void setAllPagesAsImages(boolean allPagesAsImages) {
+        this.allPagesAsImages = allPagesAsImages;
+    }
+
+    /**
+     * @return firstPageAsCoverImage
+     */
+    public boolean getFirstPageAsCoverImage() {
+        return firstPageAsCoverImage;
+    }
+
+    /**
+     * Set the flag to extract all pages in a PDF as images.
+     */
+    public void setFirstPageAsCoverImage(boolean firstPageAsCoverImage) {
+        this.firstPageAsCoverImage = firstPageAsCoverImage;
+    }
+
+    /**
+     * @return PDF with a single page could be extracted as one rendered-page image
+     */
+    public boolean getSinglePagePDFAsImage() {
+        return singlePagePDFAsImage;
+    }
+
+    /**
+     *
+     */
+    public void setSinglePagePDFAsImage(boolean singlePagePDFAsImage) {
+        this.singlePagePDFAsImage = singlePagePDFAsImage;
+    }
+
+    /**
+     * @return striped images handling in a page
+     */
+    public boolean getStripedImagesHandling() {
+        return stripedImagesHandling;
+    }
+
+    /**
+     *
+     */
+    public void setStripedImagesHandling(boolean stripedImagesHandling) {
+        this.stripedImagesHandling = stripedImagesHandling;
+    }
+
+    /**
+     * @return Number of Streams triggering the page to be converted to an image
+     */
+    public int getStripedImagesThreshold() {
+        return stripedImagesThreshold;
+    }
+
+    /**
+     *
+     */
+    public void setStripedImagesThreshold(int stripedImagesThreshold) {
+        this.stripedImagesThreshold = stripedImagesThreshold;
+    }
+
+    /**
+     * @return Check for Graphics elements in a page to convert it to an image or not
+     */
+    public boolean getGraphicsToImage() {
+        return graphicsToImage;
+    }
+
+    /**
+     *
+     */
+    public void setGraphicsToImage(boolean graphicsToImage) {
+        this.graphicsToImage = graphicsToImage;
+    }
+
+    /**
+     * @return how many images and graphics we saw in that page
+     */
+    public int getGraphicsToImageThreshold() {
+        return graphicsToImageThreshold;
+    }
+
+    /**
+     *
+     */
+    public void setGraphicsToImageThreshold(int graphicsToImageThreshold) {
+        this.graphicsToImageThreshold = graphicsToImageThreshold;
+    }
+
+    /**
+     * @return Check for JB2 images in a page to convert it to an image or not
+     */
+    public boolean getJB2Images() {
+        return jB2Images;
+    }
+
+    /**
+     *
+     */
+    public void setJB2Images(boolean jb2Images) {
+        this.jB2Images = jb2Images;
+    }
+
+    /**
+     * @return how many images and graphics we saw in that page
+     */
+    public int getJB2ImagesThreshold() {
+        return jB2ImagesThreshold;
+    }
+
+    /**
+     *
+     */
+    public void setJB2ImagesThreshold(int jb2ImagesThreshold) {
+        this.jB2ImagesThreshold = jb2ImagesThreshold;
+    }
+
+    /* end section PUTHURR */
 
     @Override
     public boolean equals(Object o) {
@@ -854,6 +1020,18 @@ public class PDFParserConfig implements Serializable {
         if (!getAccessChecker().equals(config.getAccessChecker())) {
             return false;
         }
+
+        // PUTHURR
+        if (getAllPagesAsImages() != (config.getAllPagesAsImages())) return false;
+        if (getFirstPageAsCoverImage() != (config.getFirstPageAsCoverImage())) return false;
+        if (getSinglePagePDFAsImage() != (config.getSinglePagePDFAsImage())) return false;
+        if (getStripedImagesHandling() != (config.getStripedImagesHandling())) return false;
+        if (getStripedImagesThreshold() != (config.getStripedImagesThreshold())) return false;
+        if (getGraphicsToImage() != (config.getGraphicsToImage())) return false;
+        if (getGraphicsToImageThreshold() != (config.getGraphicsToImageThreshold())) return false;
+        if (getJB2Images() != (config.getJB2Images())) return false;
+        if (getJB2ImagesThreshold() != (config.getJB2ImagesThreshold())) return false;
+
         return getMaxMainMemoryBytes() == config.getMaxMainMemoryBytes();
     }
 
@@ -879,6 +1057,17 @@ public class PDFParserConfig implements Serializable {
         result = 31 * result + (isCatchIntermediateIOExceptions() ? 1 : 0);
         result = 31 * result + (isExtractActions() ? 1 : 0);
         result = 31 * result + Long.valueOf(getMaxMainMemoryBytes()).hashCode();
+        // PUTHURR
+        result = 31 * result + (getAllPagesAsImages() ? 1 : 0);
+        result = 31 * result + (getFirstPageAsCoverImage() ? 1 : 0);
+        result = 31 * result + (getSinglePagePDFAsImage() ? 1 : 0);
+        result = 31 * result + (getStripedImagesHandling() ? 1 : 0);
+        result = 31 * result + getStripedImagesThreshold();
+        result = 31 * result + (getGraphicsToImage() ? 1 : 0);
+        result = 31 * result + getGraphicsToImageThreshold();
+        result = 31 * result + (getJB2Images() ? 1 : 0);
+        result = 31 * result + getJB2ImagesThreshold();
+
         return result;
     }
 
@@ -896,7 +1085,18 @@ public class PDFParserConfig implements Serializable {
                 ", ocrDPI=" + ocrDPI + ", ocrImageType=" + ocrImageType + ", ocrImageFormatName='" +
                 ocrImageFormatName + '\'' + ", accessChecker=" + accessChecker +
                 ", extractActions=" + extractActions + ", catchIntermediateIOExceptions=" +
-                catchIntermediateIOExceptions + ", maxMainMemoryBytes=" + maxMainMemoryBytes + '}';
+                catchIntermediateIOExceptions + ", maxMainMemoryBytes=" + maxMainMemoryBytes +
+                // puthurr
+                ", allPagesAsImages=" + allPagesAsImages +
+                ", firstPageAsCoverImage=" + firstPageAsCoverImage +
+                ", singlePagePDFAsImage=" + singlePagePDFAsImage +
+                ", stripedImagesHandling=" + stripedImagesHandling +
+                ", stripedImagesThreshold=" + stripedImagesThreshold +
+                ", graphicsToImage=" + graphicsToImage +
+                ", graphicsToImageThreshold=" + graphicsToImageThreshold +
+                ", jb2Images=" + jB2Images +
+                ", jb2ImagesThreshold=" + jB2ImagesThreshold +
+                '}';
     }
 
     public enum OCR_STRATEGY {

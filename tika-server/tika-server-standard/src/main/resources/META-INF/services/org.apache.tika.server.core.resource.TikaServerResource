@@ -13,3 +13,6 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 org.apache.tika.server.standard.resource.XMPMetadataResource
+# Azure unpack support
+org.apache.tika.server.standard.resource.azure.AzureStatusResource
+org.apache.tika.server.standard.resource.azure.AzureUnpackerResource

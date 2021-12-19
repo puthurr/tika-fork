@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.commons.io.FilenameUtils;
 import org.apache.poi.ooxml.POIXMLDocument;
 import org.apache.poi.ooxml.extractor.POIXMLTextExtractor;
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
@@ -124,8 +125,7 @@ public abstract class AbstractOOXMLExtractor implements OOXMLExtractor {
     }
 
     /**
-     * @see
-     * org.apache.tika.parser.microsoft.ooxml.OOXMLExtractor#getXHTML(ContentHandler, Metadata,
+     * @see org.apache.tika.parser.microsoft.ooxml.OOXMLExtractor#getXHTML(ContentHandler, Metadata,
      * ParseContext)
      */
     public void getXHTML(ContentHandler handler, Metadata metadata, ParseContext context)
@@ -241,10 +241,16 @@ public abstract class AbstractOOXMLExtractor implements OOXMLExtractor {
 
         URI sourceURI = rel.getSourceURI();
         String sourceDesc;
+        int sourceNumber = 0;
         if (sourceURI != null) {
             sourceDesc = getJustFileName(sourceURI.getPath());
             if (sourceDesc.startsWith("slide")) {
                 sourceDesc += "_";
+                try {
+                    sourceNumber = Integer.parseInt(sourceDesc.replace("slide", "").replace("_", ""));
+                } catch (Exception e) {
+                    sourceNumber = 0;
+                }
             } else {
                 sourceDesc = "";
             }
@@ -273,7 +279,7 @@ public abstract class AbstractOOXMLExtractor implements OOXMLExtractor {
                 RELATION_AUDIO.equals(type) || PackageRelationshipTypes.IMAGE_PART.equals(type) ||
                 POIXMLDocument.PACK_OBJECT_REL_TYPE.equals(type) ||
                 POIXMLDocument.OLE_OBJECT_REL_TYPE.equals(type)) {
-            handleEmbeddedFile(target, handler, sourceDesc + rel.getId());
+            handleEmbeddedFile(target, handler, sourceNumber, sourceDesc + rel.getId());
             if (targetURI != null) {
                 handledTarget.add(targetURI.toString());
             }
@@ -349,7 +355,7 @@ public abstract class AbstractOOXMLExtractor implements OOXMLExtractor {
                                     false);
                 }
             } else {
-                handleEmbeddedFile(part, handler, rel);
+                handleEmbeddedFile(part, handler, 0, rel);
             }
         } catch (FileNotFoundException e) {
             // There was no CONTENTS entry, so skip this part
@@ -384,19 +390,30 @@ public abstract class AbstractOOXMLExtractor implements OOXMLExtractor {
         return null;
     }
 
+    // PUTHURR - START
+    protected String getImageResourceName(int sourceNumber, String inputName, String contentType) {
+        String name = getJustFileName(inputName);
+
+        String partstem = name.replaceAll("[0-9]", "");
+        int partnumber = Integer.parseInt(name.replaceAll("[^0-9]", ""));
+        String extension = FilenameUtils.getExtension(inputName);
+
+        if (contentType.startsWith("image")) {
+            return (config.getImageFilename(sourceNumber, partnumber, extension));
+        } else {
+            return (config.getResourceFilename(partstem, sourceNumber, partnumber, extension));
+        }
+    }
+
     /**
      * Handles an embedded file in the document
      */
-    protected void handleEmbeddedFile(PackagePart part, ContentHandler handler, String rel)
+    protected void handleEmbeddedFile(PackagePart part, ContentHandler handler, int sourceNumber, String rel)
             throws SAXException, IOException {
         Metadata metadata = new Metadata();
         metadata.set(TikaCoreProperties.EMBEDDED_RELATIONSHIP_ID, rel);
-
-        // Get the name
-        String name = part.getPartName().getName();
-        metadata.set(TikaCoreProperties.RESOURCE_NAME_KEY,
-                name.substring(name.lastIndexOf('/') + 1));
-
+        metadata.set(TikaCoreProperties.RESOURCE_NAME_KEY, getImageResourceName(sourceNumber,
+                part.getPartName().getName(), part.getContentType()));
         // Get the content type
         metadata.set(Metadata.CONTENT_TYPE, part.getContentType());
 
@@ -408,6 +425,8 @@ public abstract class AbstractOOXMLExtractor implements OOXMLExtractor {
             }
         }
     }
+
+    // PUTHURR - END
 
     /**
      * Populates the {@link XHTMLContentHandler} object received as parameter.

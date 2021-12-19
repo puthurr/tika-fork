@@ -16,6 +16,7 @@
  */
 package org.apache.tika.parser.microsoft.ooxml;
 
+import java.awt.Dimension;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -27,6 +28,11 @@ import javax.xml.namespace.QName;
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.apache.poi.openxml4j.opc.PackagePart;
 import org.apache.poi.openxml4j.opc.PackageRelationshipCollection;
+import org.apache.poi.sl.image.ImageHeaderBitmap;
+import org.apache.poi.sl.image.ImageHeaderEMF;
+import org.apache.poi.sl.image.ImageHeaderPICT;
+import org.apache.poi.sl.image.ImageHeaderWMF;
+import org.apache.poi.util.Units;
 import org.apache.poi.xssf.usermodel.XSSFRelation;
 import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
 import org.apache.poi.xwpf.model.XWPFCommentsDecorator;
@@ -56,6 +62,7 @@ import org.apache.poi.xwpf.usermodel.XWPFTableRow;
 import org.apache.xmlbeans.XmlCursor;
 import org.apache.xmlbeans.XmlException;
 import org.apache.xmlbeans.XmlObject;
+import org.openxmlformats.schemas.drawingml.x2006.picture.CTPicture;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTBookmark;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTObject;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTP;
@@ -325,7 +332,9 @@ public class XWPFWordExtractorDecorator extends AbstractOOXMLExtractor {
         //not just the immediate children of txbxContent -- TIKA-2807
         if (config.isIncludeShapeBasedContent()) {
             for (XmlObject embeddedParagraph : paragraph.getCTP().selectPath(
-                    "declare namespace w='http://schemas.openxmlformats.org/wordprocessingml/2006/main' declare namespace wps='http://schemas.microsoft.com/office/word/2010/wordprocessingShape' .//*/wps:txbx/w:txbxContent//w:p")) {
+                    "declare namespace w='http://schemas.openxmlformats.org/wordprocessingml/2006/main' declare " +
+                            "namespace wps='http://schemas.microsoft.com/office/word/2010/wordprocessingShape' " +
+                            ".//*/wps:txbx/w:txbxContent//w:p")) {
                 extractParagraph(new XWPFParagraph(CTP.Factory.parse(embeddedParagraph.xmlText()),
                         paragraph.getBody()), listManager, xhtml);
             }
@@ -351,6 +360,7 @@ public class XWPFWordExtractorDecorator extends AbstractOOXMLExtractor {
 
     }
 
+    // PUTHURR
     private void processRun(XWPFRun run, XWPFParagraph paragraph, XHTMLContentHandler xhtml,
                             Deque<FormattingUtils.Tag> formattingState)
             throws SAXException, XmlException, IOException {
@@ -366,18 +376,84 @@ public class XWPFWordExtractorDecorator extends AbstractOOXMLExtractor {
         // If we have any pictures, output them
         for (XWPFPicture picture : run.getEmbeddedPictures()) {
             if (paragraph.getDocument() != null) {
-                XWPFPictureData data = picture.getPictureData();
-                if (data != null) {
-                    AttributesImpl attr = new AttributesImpl();
 
-                    attr.addAttribute("", "src", "src", "CDATA", "embedded:" + data.getFileName());
-                    attr.addAttribute("", "alt", "alt", "CDATA", picture.getDescription());
+                XWPFPictureData imgdata = null;
 
-                    xhtml.startElement("img", attr);
+                try {
+                    imgdata = picture.getPictureData();
+                } catch (NullPointerException e) {
+                    continue;
+                }
+                if (imgdata != null) {
+                    AttributesImpl attributes = new AttributesImpl();
+
+                    attributes.addAttribute("", "class", "class", "CDATA", "embedded");
+                    CTPicture ctPic = picture.getCTPicture();
+                    if (ctPic.getBlipFill() != null && ctPic.getBlipFill().getBlip() != null) {
+                        attributes.addAttribute("", "id", "id", "CDATA",
+                                picture.getCTPicture().getBlipFill().getBlip().getEmbed());
+                    }
+                    attributes.addAttribute("", "src", "src", "CDATA", getImageResourceName(0, imgdata.getFileName(),
+                            imgdata.getPackagePart().getContentType()));
+                    attributes.addAttribute("", "title", "title", "CDATA", picture.getDescription());
+                    attributes.addAttribute("", "alt", "alt", "CDATA", imgdata.getFileName());
+
+                    try {
+                        if (imgdata.getPackagePart().getContentType() != null) {
+                            attributes.addAttribute("", "contenttype", "contenttype", "CDATA",
+                                    imgdata.getPackagePart().getContentType());
+//                                        String ext = getTikaConfig().getMimeRepository().forName(imgdata
+//                                        .getContentType()).getExtension();
+                        }
+                        Dimension imgdim = getImageDimensionInPixels(imgdata);
+                        attributes.addAttribute("", "width", "witdh", "CDATA", String.valueOf(imgdim.width));
+                        attributes.addAttribute("", "height", "height", "CDATA", String.valueOf(imgdim.height));
+
+                        attributes.addAttribute("", "size", "size", "CDATA", String.valueOf(imgdata.getData().length));
+
+                    } catch (Exception e) {
+                        // Do Nothing
+                    }
+
+                    xhtml.startElement("img", attributes);
                     xhtml.endElement("img");
                 }
             }
         }
+    }
+
+    /*
+        The below two method required to output the image dimension in the img tag (HTML).
+        They are inspired by the XSLFPictureData class.
+    */
+    protected Dimension getImageDimension(XWPFPictureData imgdata) {
+        Dimension origSize;
+        byte[] data = imgdata.getData();
+        int pt = imgdata.getPictureType();
+
+        if (pt == 0) {
+            origSize = new Dimension(1, 1);
+        } else {
+            switch (pt) {
+                case 2:
+                    origSize = (new ImageHeaderEMF(data, 0)).getSize();
+                    break;
+                case 3:
+                    origSize = (new ImageHeaderWMF(data, 0)).getSize();
+                    break;
+                case 4:
+                    origSize = (new ImageHeaderPICT(data, 0)).getSize();
+                    break;
+                default:
+                    origSize = (new ImageHeaderBitmap(data, 0)).getSize();
+            }
+        }
+        return origSize;
+    }
+
+    protected Dimension getImageDimensionInPixels(XWPFPictureData imgdata) {
+        Dimension dim = this.getImageDimension(imgdata);
+        return new Dimension(Units.pointsToPixel(dim.getWidth()), Units.pointsToPixel(dim.getHeight()));
     }
 
     private void processSDTRun(XWPFSDT run, XHTMLContentHandler xhtml)

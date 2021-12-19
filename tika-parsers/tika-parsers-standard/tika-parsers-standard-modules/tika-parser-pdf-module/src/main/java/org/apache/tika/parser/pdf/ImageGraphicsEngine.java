@@ -18,13 +18,13 @@ package org.apache.tika.parser.pdf;
 
 import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -32,7 +32,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pdfbox.contentstream.PDFGraphicsStreamEngine;
 import org.apache.pdfbox.cos.COSName;
 import org.apache.pdfbox.cos.COSStream;
-import org.apache.pdfbox.filter.MissingImageReaderException;
 import org.apache.pdfbox.io.IOUtils;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDResources;
@@ -53,13 +52,11 @@ import org.apache.pdfbox.tools.imageio.ImageIOUtil;
 import org.apache.pdfbox.util.Matrix;
 import org.apache.pdfbox.util.Vector;
 import org.xml.sax.SAXException;
-import org.xml.sax.helpers.AttributesImpl;
 
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.exception.TikaMemoryLimitException;
 import org.apache.tika.exception.ZeroByteFileException;
 import org.apache.tika.extractor.EmbeddedDocumentExtractor;
-import org.apache.tika.extractor.EmbeddedDocumentUtil;
 import org.apache.tika.io.BoundedInputStream;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
@@ -94,7 +91,14 @@ class ImageGraphicsEngine extends PDFGraphicsStreamEngine {
     private final ParseContext parseContext;
     private final boolean extractInlineImageMetadataOnly;
     //TODO: parameterize this ?
-    private boolean useDirectJPEG = false;
+    public static boolean useDirectJPEG = false;
+
+    private Map<PDImage, Integer> extractedImages;
+
+    // PUTHURR
+    private boolean statisticsRun = false;
+    private PDFStatistics stats = new PDFStatistics();
+
 
     //TODO: this is an embarrassment of an initializer...fix
     protected ImageGraphicsEngine(PDPage page, EmbeddedDocumentExtractor embeddedDocumentExtractor,
@@ -111,11 +115,304 @@ class ImageGraphicsEngine extends PDFGraphicsStreamEngine {
         this.parentMetadata = parentMetadata;
         this.parseContext = parseContext;
         this.extractInlineImageMetadataOnly = pdfParserConfig.isExtractInlineImageMetadataOnly();
+
+        // PUTHURR
+        // An ImagesGraphicsEngine is created per page
+        this.extractedImages = new HashMap<>();
+    }
+
+    /**
+     * @return statistics representing the presence of certain type of objects in a page
+     * @throws IOException
+     */
+    public PDFStatistics runStatistics() throws IOException {
+        setStatisticsRun(true);
+        run();
+        return stats;
+    }
+
+    /**
+     * Extract all Images from a PDF Page
+     *
+     * @throws IOException
+     */
+    public Map<PDImage, Integer> imagesExtractionRun() throws IOException {
+        setStatisticsRun(false);
+        return run();
+    }
+
+    /**
+     * @throws IOException
+     */
+    private Map<PDImage, Integer> run() throws IOException {
+        PDPage page = getPage();
+
+        //TODO: is there a better way to do this rather than reprocessing the page
+        //can we process the text and images in one go?
+        processPage(page);
+        PDResources res = page.getResources();
+        if (res == null) {
+            return null;
+        }
+
+        for (COSName name : res.getExtGStateNames()) {
+            PDExtendedGraphicsState extendedGraphicsState = res.getExtGState(name);
+            if (extendedGraphicsState != null) {
+                PDSoftMask softMask = extendedGraphicsState.getSoftMask();
+
+                if (softMask != null) {
+                    try {
+                        PDTransparencyGroup group = softMask.getGroup();
+
+                        if (group != null) {
+                            // PDFBOX-4327: without this line NPEs will occur
+                            res.getExtGState(name).copyIntoGraphicsState(getGraphicsState());
+
+                            processSoftMask(group);
+                        }
+                    } catch (IOException e) {
+                        handleCatchableIOE(e);
+                    }
+                }
+            }
+        }
+        return extractedImages;
+    }
+
+    @Override
+    public void drawImage(PDImage pdImage) throws IOException {
+        if (isStatisticsRun()) {
+            stats.incrementImageCounter();
+
+            // Specific to JB2 images
+            if (pdImage.getSuffix().equals("jb2")) {
+                stats.incrementJB2Counter();
+            }
+
+            return;
+        }
+
+        int imageNumber = 0;
+        if (pdImage instanceof PDImageXObject) {
+            if (pdImage.isStencil()) {
+                processColor(getGraphicsState().getNonStrokingColor());
+            }
+
+            PDImageXObject xobject = (PDImageXObject) pdImage;
+            Integer cachedNumber = processedInlineImages.get(xobject.getCOSObject());
+            if (cachedNumber != null && pdfParserConfig.isExtractUniqueInlineImagesOnly()) {
+                // skip duplicate image
+                return;
+            }
+            if (cachedNumber == null) {
+                imageNumber = imageCounter.getAndIncrement();
+                processedInlineImages.put(xobject.getCOSObject(), imageNumber);
+            }
+        } else {
+            imageNumber = imageCounter.getAndIncrement();
+        }
+//        //TODO: should we use the hash of the PDImage to check for seen
+//        //For now, we're relying on the cosobject, but this could lead to
+//        //duplicates if the pdImage is not a PDImageXObject?
+//        try {
+//            processImage(pdImage, imageNumber);
+//        } catch (TikaException|SAXException e) {
+//            throw new IOExceptionWithCause(e);
+//        } catch (IOException e) {
+//            handleCatchableIOE(e);
+//        }
+        extractedImages.put(pdImage, imageNumber);
+    }
+
+    @Override
+    public void appendRectangle(Point2D p0, Point2D p1, Point2D p2, Point2D p3)
+            throws IOException {
+        if (Math.floor(p0.getY()) == 0.0 && (Math.floor(p0.getX()) == 0.0)
+                && (Math.floor(p1.getY()) == 0.0)
+                && (Math.floor(p3.getX()) == 0.0)) {
+            //Do Nothing
+        } else {
+            stats.incrementGraphicCounter(10000);
+        }
+    }
+
+    @Override
+    public void clip(int windingRule) throws IOException {
+
+    }
+
+    @Override
+    public void moveTo(float x, float y) throws IOException {
+
+    }
+
+    @Override
+    public void lineTo(float x, float y) throws IOException {
+
+    }
+
+    @Override
+    public void curveTo(float x1, float y1, float x2, float y2, float x3, float y3)
+            throws IOException {
+        // A Curve could be considered as a graphical element used to annotate an image.
+        stats.incrementGraphicCounter(100000);
+    }
+
+    @Override
+    public Point2D getCurrentPoint() throws IOException {
+        return new Point2D.Float(0, 0);
+    }
+
+    @Override
+    public void closePath() throws IOException {
+
+    }
+
+    @Override
+    public void endPath() throws IOException {
+
+    }
+
+    @Override
+    protected void showGlyph(Matrix textRenderingMatrix,
+                             PDFont font,
+                             int code,
+                             String unicode,
+                             Vector displacement) throws IOException {
+
+        RenderingMode renderingMode = getGraphicsState().getTextState().getRenderingMode();
+        if (renderingMode.isFill()) {
+            processColor(getGraphicsState().getNonStrokingColor());
+        }
+
+        if (renderingMode.isStroke()) {
+            processColor(getGraphicsState().getStrokingColor());
+        }
+    }
+
+    @Override
+    public void strokePath() throws IOException {
+        processColor(getGraphicsState().getStrokingColor());
+    }
+
+    @Override
+    public void fillPath(int windingRule) throws IOException {
+        processColor(getGraphicsState().getNonStrokingColor());
+    }
+
+    @Override
+    public void fillAndStrokePath(int windingRule) throws IOException {
+        processColor(getGraphicsState().getNonStrokingColor());
+    }
+
+    @Override
+    public void shadingFill(COSName shadingName) throws IOException {
+
+    }
+
+    // find out if it is a tiling pattern, then process that one
+    private void processColor(PDColor color) throws IOException {
+        if (color.getColorSpace() instanceof PDPattern) {
+            PDPattern pattern = (PDPattern) color.getColorSpace();
+            PDAbstractPattern abstractPattern = pattern.getPattern(color);
+
+            if (abstractPattern instanceof PDTilingPattern) {
+                processTilingPattern((PDTilingPattern) abstractPattern, null, null);
+            }
+        }
+    }
+
+    // PUTHURR
+    // Utils methods
+
+
+    private void extractInlineImageMetadataOnly(PDImage pdImage, Metadata metadata) throws IOException, SAXException {
+        if (pdImage instanceof PDImageXObject) {
+            PDMetadataExtractor.extract(((PDImageXObject) pdImage).getMetadata(),
+                    metadata, parseContext);
+        }
+        metadata.set(Metadata.IMAGE_WIDTH, pdImage.getWidth());
+        metadata.set(Metadata.IMAGE_LENGTH, pdImage.getHeight());
+        //TODO: what else can we extract from the PDImage without rendering?
+        ZeroByteFileException.IgnoreZeroByteFileException before =
+                parseContext.get(ZeroByteFileException.IgnoreZeroByteFileException.class);
+        try {
+            parseContext.set(ZeroByteFileException.IgnoreZeroByteFileException.class,
+                    ZeroByteFileException.IGNORE_ZERO_BYTE_FILE_EXCEPTION);
+            embeddedDocumentExtractor.parseEmbedded(TikaInputStream.get(new byte[0]),
+                    new EmbeddedContentHandler(xhtml), metadata, false);
+        } finally {
+            //replace whatever was there before
+            parseContext.set(ZeroByteFileException.IgnoreZeroByteFileException.class,
+                    before);
+        }
+    }
+
+    public static String getSuffix(PDImage pdImage, Metadata metadata) throws IOException {
+        if (hasMasks(pdImage)) {
+            // TIKA-3040, PDFBOX-4771: can't save ARGB as JPEG
+            metadata.set(Metadata.CONTENT_TYPE, "image/png");
+            return "png";
+        }
+        return getSuffix(pdImage.getSuffix(), metadata);
+    }
+
+    public static String getSuffix(String suffix, Metadata metadata) throws IOException {
+        if (suffix == null || suffix.equals("png")) {
+            metadata.set(Metadata.CONTENT_TYPE, "image/png");
+            suffix = "png";
+        } else if (suffix.equals("jpg")) {
+            metadata.set(Metadata.CONTENT_TYPE, "image/jpeg");
+        } else if (suffix.equals("jpeg")) {
+            metadata.set(Metadata.CONTENT_TYPE, "image/jpeg");
+        } else if (suffix.equals("tiff")) {
+            metadata.set(Metadata.CONTENT_TYPE, "image/tiff");
+            suffix = "tif";
+        } else if (suffix.equals("tif")) {
+            metadata.set(Metadata.CONTENT_TYPE, "image/tiff");
+            suffix = "tif";
+        } else if (suffix.equals("jpx")) {
+            metadata.set(Metadata.CONTENT_TYPE, "image/jp2");
+            // use jp2 suffix for file because jpx not known by windows
+            suffix = "jp2";
+        } else if (suffix.equals("jb2")) {
+            //PDFBox resets suffix to png when image's suffix == jb2
+            metadata.set(
+                    Metadata.CONTENT_TYPE, "image/x-jbig2");
+        } else {
+            //TODO: determine if we need to add more image types
+//                    throw new RuntimeException("EXTEN:" + extension);
+        }
+        return suffix;
+    }
+
+    void handleCatchableIOE(IOException e) throws IOException {
+        if (pdfParserConfig.isCatchIntermediateIOExceptions()) {
+            if (e.getCause() instanceof SAXException && e.getCause().getMessage() != null &&
+                    e.getCause().getMessage().contains("Your document contained more than")) {
+                //TODO -- is there a cleaner way of checking for:
+                // WriteOutContentHandler.WriteLimitReachedException?
+                throw e;
+            }
+
+            String msg = e.getMessage();
+            if (msg == null) {
+                msg = "IOException, no message";
+            }
+            parentMetadata.add(TikaCoreProperties.TIKA_META_EXCEPTION_WARNING, msg);
+            exceptions.add(e);
+        } else {
+            throw e;
+        }
+    }
+
+    List<IOException> getExceptions() {
+        return exceptions;
     }
 
     //nearly directly copied from PDFBox ExtractImages
-    private static void writeToBuffer(PDImage pdImage, String suffix, boolean directJPEG,
-                                      OutputStream out) throws IOException, TikaException {
+    public static void writeToBuffer(PDImage pdImage, String suffix, boolean directJPEG,
+                                     OutputStream out) throws IOException, TikaException {
 
         if ("jpg".equals(suffix)) {
 
@@ -211,281 +508,290 @@ class ImageGraphicsEngine extends PDFGraphicsStreamEngine {
         return false;
     }
 
-    void run() throws IOException {
-        PDPage page = getPage();
-
-        //TODO: is there a better way to do this rather than reprocessing the page
-        //can we process the text and images in one go?
-        processPage(page);
-        PDResources res = page.getResources();
-        if (res == null) {
-            return;
-        }
-
-        for (COSName name : res.getExtGStateNames()) {
-            PDExtendedGraphicsState extendedGraphicsState = res.getExtGState(name);
-            if (extendedGraphicsState != null) {
-                PDSoftMask softMask = extendedGraphicsState.getSoftMask();
-
-                if (softMask != null) {
-                    try {
-                        PDTransparencyGroup group = softMask.getGroup();
-
-                        if (group != null) {
-                            // PDFBOX-4327: without this line NPEs will occur
-                            res.getExtGState(name).copyIntoGraphicsState(getGraphicsState());
-
-                            processSoftMask(group);
-                        }
-                    } catch (IOException e) {
-                        handleCatchableIOE(e);
-                    }
-                }
-            }
-        }
+    public boolean isStatisticsRun() {
+        return statisticsRun;
     }
 
-    @Override
-    public void drawImage(PDImage pdImage) throws IOException {
-        int imageNumber = 0;
-        if (pdImage instanceof PDImageXObject) {
-            if (pdImage.isStencil()) {
-                processColor(getGraphicsState().getNonStrokingColor());
-            }
-
-            PDImageXObject xobject = (PDImageXObject) pdImage;
-            Integer cachedNumber = processedInlineImages.get(xobject.getCOSObject());
-            if (cachedNumber != null && pdfParserConfig.isExtractUniqueInlineImagesOnly()) {
-                // skip duplicate image
-                return;
-            }
-            if (cachedNumber == null) {
-                imageNumber = imageCounter.getAndIncrement();
-                processedInlineImages.put(xobject.getCOSObject(), imageNumber);
-            }
-        } else {
-            imageNumber = imageCounter.getAndIncrement();
-        }
-        //TODO: should we use the hash of the PDImage to check for seen
-        //For now, we're relying on the cosobject, but this could lead to
-        //duplicates if the pdImage is not a PDImageXObject?
-        try {
-            processImage(pdImage, imageNumber);
-        } catch (TikaException | SAXException e) {
-            throw new IOException(e);
-        } catch (IOException e) {
-            handleCatchableIOE(e);
-        }
+    public void setStatisticsRun(boolean statisticsRun) {
+        this.statisticsRun = statisticsRun;
     }
 
-    @Override
-    public void appendRectangle(Point2D p0, Point2D p1, Point2D p2, Point2D p3) throws IOException {
 
-    }
-
-    @Override
-    public void clip(int windingRule) throws IOException {
-
-    }
-
-    @Override
-    public void moveTo(float x, float y) throws IOException {
-
-    }
-
-    @Override
-    public void lineTo(float x, float y) throws IOException {
-
-    }
-
-    @Override
-    public void curveTo(float x1, float y1, float x2, float y2, float x3, float y3)
-            throws IOException {
-
-    }
-
-    @Override
-    public Point2D getCurrentPoint() throws IOException {
-        return new Point2D.Float(0, 0);
-    }
-
-    @Override
-    public void closePath() throws IOException {
-
-    }
-
-    @Override
-    public void endPath() throws IOException {
-
-    }
-
-    @Override
-    protected void showGlyph(Matrix textRenderingMatrix, PDFont font, int code, String unicode,
-                             Vector displacement) throws IOException {
-
-        RenderingMode renderingMode = getGraphicsState().getTextState().getRenderingMode();
-        if (renderingMode.isFill()) {
-            processColor(getGraphicsState().getNonStrokingColor());
-        }
-
-        if (renderingMode.isStroke()) {
-            processColor(getGraphicsState().getStrokingColor());
-        }
-    }
-
-    @Override
-    public void strokePath() throws IOException {
-        processColor(getGraphicsState().getStrokingColor());
-    }
-
-    @Override
-    public void fillPath(int windingRule) throws IOException {
-        processColor(getGraphicsState().getNonStrokingColor());
-    }
-
-    @Override
-    public void fillAndStrokePath(int windingRule) throws IOException {
-        processColor(getGraphicsState().getNonStrokingColor());
-    }
-
-    @Override
-    public void shadingFill(COSName shadingName) throws IOException {
-
-    }
-
-    // find out if it is a tiling pattern, then process that one
-    private void processColor(PDColor color) throws IOException {
-        if (color.getColorSpace() instanceof PDPattern) {
-            PDPattern pattern = (PDPattern) color.getColorSpace();
-            PDAbstractPattern abstractPattern = pattern.getPattern(color);
-
-            if (abstractPattern instanceof PDTilingPattern) {
-                processTilingPattern((PDTilingPattern) abstractPattern, null, null);
-            }
-        }
-    }
-
-    private void processImage(PDImage pdImage, int imageNumber)
-            throws IOException, TikaException, SAXException {
-        //this is the metadata for this particular image
-        Metadata metadata = new Metadata();
-        String suffix = getSuffix(pdImage, metadata);
-        String fileName = "image" + imageNumber + "." + suffix;
-
-
-        AttributesImpl attr = new AttributesImpl();
-        attr.addAttribute("", "src", "src", "CDATA", "embedded:" + fileName);
-        attr.addAttribute("", "alt", "alt", "CDATA", fileName);
-        xhtml.startElement("img", attr);
-        xhtml.endElement("img");
-
-
-        metadata.set(TikaCoreProperties.RESOURCE_NAME_KEY, fileName);
-        metadata.set(TikaCoreProperties.EMBEDDED_RESOURCE_TYPE,
-                TikaCoreProperties.EmbeddedResourceType.INLINE.toString());
-
-        if (extractInlineImageMetadataOnly) {
-            extractInlineImageMetadataOnly(pdImage, metadata);
-            return;
-        }
-
-        if (embeddedDocumentExtractor.shouldParseEmbedded(metadata)) {
-            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-            if (pdImage instanceof PDImageXObject) {
-                PDMetadataExtractor
-                        .extract(((PDImageXObject) pdImage).getMetadata(), metadata, parseContext);
-            }
-            //extract the metadata contained outside of the image
-            try {
-                writeToBuffer(pdImage, suffix, useDirectJPEG, buffer);
-            } catch (MissingImageReaderException e) {
-                EmbeddedDocumentUtil.recordException(e, parentMetadata);
-                return;
-            } catch (IOException e) {
-                EmbeddedDocumentUtil.recordEmbeddedStreamException(e, metadata);
-                return;
-            }
-            try (InputStream embeddedIs = TikaInputStream.get(buffer.toByteArray())) {
-                embeddedDocumentExtractor
-                        .parseEmbedded(embeddedIs, new EmbeddedContentHandler(xhtml), metadata,
-                                false);
-            }
-        }
-
-    }
-
-    private void extractInlineImageMetadataOnly(PDImage pdImage, Metadata metadata)
-            throws IOException, SAXException {
-        if (pdImage instanceof PDImageXObject) {
-            PDMetadataExtractor
-                    .extract(((PDImageXObject) pdImage).getMetadata(), metadata, parseContext);
-        }
-        metadata.set(Metadata.IMAGE_WIDTH, pdImage.getWidth());
-        metadata.set(Metadata.IMAGE_LENGTH, pdImage.getHeight());
-        //TODO: what else can we extract from the PDImage without rendering?
-        ZeroByteFileException.IgnoreZeroByteFileException before =
-                parseContext.get(ZeroByteFileException.IgnoreZeroByteFileException.class);
-        try {
-            parseContext.set(ZeroByteFileException.IgnoreZeroByteFileException.class,
-                    ZeroByteFileException.IGNORE_ZERO_BYTE_FILE_EXCEPTION);
-            embeddedDocumentExtractor.parseEmbedded(TikaInputStream.get(new byte[0]),
-                    new EmbeddedContentHandler(xhtml), metadata, false);
-        } finally {
-            //replace whatever was there before
-            parseContext.set(ZeroByteFileException.IgnoreZeroByteFileException.class, before);
-        }
-    }
-
-    private String getSuffix(PDImage pdImage, Metadata metadata) throws IOException {
-        String suffix = pdImage.getSuffix();
-
-        if (suffix == null || suffix.equals("png")) {
-            metadata.set(Metadata.CONTENT_TYPE, "image/png");
-            suffix = "png";
-        } else if (suffix.equals("jpg")) {
-            metadata.set(Metadata.CONTENT_TYPE, "image/jpeg");
-        } else if (suffix.equals("tiff")) {
-            metadata.set(Metadata.CONTENT_TYPE, "image/tiff");
-            suffix = "tif";
-        } else if (suffix.equals("jpx")) {
-            metadata.set(Metadata.CONTENT_TYPE, "image/jp2");
-            // use jp2 suffix for file because jpx not known by windows
-            suffix = "jp2";
-        } else if (suffix.equals("jb2")) {
-            //PDFBox resets suffix to png when image's suffix == jb2
-            metadata.set(Metadata.CONTENT_TYPE, "image/x-jbig2");
-        } else {
-            //TODO: determine if we need to add more image types
-//                    throw new RuntimeException("EXTEN:" + extension);
-        }
-        if (hasMasks(pdImage)) {
-            // TIKA-3040, PDFBOX-4771: can't save ARGB as JPEG
-            suffix = "png";
-        }
-        return suffix;
-    }
-
-    void handleCatchableIOE(IOException e) throws IOException {
-        if (pdfParserConfig.isCatchIntermediateIOExceptions()) {
-            if (e.getCause() instanceof SAXException && e.getCause().getMessage() != null &&
-                    e.getCause().getMessage().contains("Your document contained more than")) {
-                //TODO -- is there a cleaner way of checking for:
-                // WriteOutContentHandler.WriteLimitReachedException?
-                throw e;
-            }
-
-            String msg = e.getMessage();
-            if (msg == null) {
-                msg = "IOException, no message";
-            }
-            parentMetadata.add(TikaCoreProperties.TIKA_META_EXCEPTION_WARNING, msg);
-            exceptions.add(e);
-        } else {
-            throw e;
-        }
-    }
-
-    List<IOException> getExceptions() {
-        return exceptions;
-    }
+//    void run() throws IOException {
+//        PDPage page = getPage();
+//
+//        //TODO: is there a better way to do this rather than reprocessing the page
+//        //can we process the text and images in one go?
+//        processPage(page);
+//        PDResources res = page.getResources();
+//        if (res == null) {
+//            return;
+//        }
+//
+//        for (COSName name : res.getExtGStateNames()) {
+//            PDExtendedGraphicsState extendedGraphicsState = res.getExtGState(name);
+//            if (extendedGraphicsState != null) {
+//                PDSoftMask softMask = extendedGraphicsState.getSoftMask();
+//
+//                if (softMask != null) {
+//                    try {
+//                        PDTransparencyGroup group = softMask.getGroup();
+//
+//                        if (group != null) {
+//                            // PDFBOX-4327: without this line NPEs will occur
+//                            res.getExtGState(name).copyIntoGraphicsState(getGraphicsState());
+//
+//                            processSoftMask(group);
+//                        }
+//                    } catch (IOException e) {
+//                        handleCatchableIOE(e);
+//                    }
+//                }
+//            }
+//        }
+//    }
+//
+//    @Override
+//    public void drawImage(PDImage pdImage) throws IOException {
+//        int imageNumber = 0;
+//        if (pdImage instanceof PDImageXObject) {
+//            if (pdImage.isStencil()) {
+//                processColor(getGraphicsState().getNonStrokingColor());
+//            }
+//
+//            PDImageXObject xobject = (PDImageXObject) pdImage;
+//            Integer cachedNumber = processedInlineImages.get(xobject.getCOSObject());
+//            if (cachedNumber != null && pdfParserConfig.isExtractUniqueInlineImagesOnly()) {
+//                // skip duplicate image
+//                return;
+//            }
+//            if (cachedNumber == null) {
+//                imageNumber = imageCounter.getAndIncrement();
+//                processedInlineImages.put(xobject.getCOSObject(), imageNumber);
+//            }
+//        } else {
+//            imageNumber = imageCounter.getAndIncrement();
+//        }
+//        //TODO: should we use the hash of the PDImage to check for seen
+//        //For now, we're relying on the cosobject, but this could lead to
+//        //duplicates if the pdImage is not a PDImageXObject?
+//        try {
+//            processImage(pdImage, imageNumber);
+//        } catch (TikaException | SAXException e) {
+//            throw new IOException(e);
+//        } catch (IOException e) {
+//            handleCatchableIOE(e);
+//        }
+//    }
+//
+//    @Override
+//    public void appendRectangle(Point2D p0, Point2D p1, Point2D p2, Point2D p3) throws IOException {
+//
+//    }
+//
+//    @Override
+//    public void clip(int windingRule) throws IOException {
+//
+//    }
+//
+//    @Override
+//    public void moveTo(float x, float y) throws IOException {
+//
+//    }
+//
+//    @Override
+//    public void lineTo(float x, float y) throws IOException {
+//
+//    }
+//
+//    @Override
+//    public void curveTo(float x1, float y1, float x2, float y2, float x3, float y3)
+//            throws IOException {
+//
+//    }
+//
+//    @Override
+//    public Point2D getCurrentPoint() throws IOException {
+//        return new Point2D.Float(0, 0);
+//    }
+//
+//    @Override
+//    public void closePath() throws IOException {
+//
+//    }
+//
+//    @Override
+//    public void endPath() throws IOException {
+//
+//    }
+//
+//    @Override
+//    protected void showGlyph(Matrix textRenderingMatrix, PDFont font, int code, String unicode,
+//                             Vector displacement) throws IOException {
+//
+//        RenderingMode renderingMode = getGraphicsState().getTextState().getRenderingMode();
+//        if (renderingMode.isFill()) {
+//            processColor(getGraphicsState().getNonStrokingColor());
+//        }
+//
+//        if (renderingMode.isStroke()) {
+//            processColor(getGraphicsState().getStrokingColor());
+//        }
+//    }
+//
+//    @Override
+//    public void strokePath() throws IOException {
+//        processColor(getGraphicsState().getStrokingColor());
+//    }
+//
+//    @Override
+//    public void fillPath(int windingRule) throws IOException {
+//        processColor(getGraphicsState().getNonStrokingColor());
+//    }
+//
+//    @Override
+//    public void fillAndStrokePath(int windingRule) throws IOException {
+//        processColor(getGraphicsState().getNonStrokingColor());
+//    }
+//
+//    @Override
+//    public void shadingFill(COSName shadingName) throws IOException {
+//
+//    }
+//
+//    // find out if it is a tiling pattern, then process that one
+//    private void processColor(PDColor color) throws IOException {
+//        if (color.getColorSpace() instanceof PDPattern) {
+//            PDPattern pattern = (PDPattern) color.getColorSpace();
+//            PDAbstractPattern abstractPattern = pattern.getPattern(color);
+//
+//            if (abstractPattern instanceof PDTilingPattern) {
+//                processTilingPattern((PDTilingPattern) abstractPattern, null, null);
+//            }
+//        }
+//    }
+//
+//    private void processImage(PDImage pdImage, int imageNumber)
+//            throws IOException, TikaException, SAXException {
+//        //this is the metadata for this particular image
+//        Metadata metadata = new Metadata();
+//        String suffix = getSuffix(pdImage, metadata);
+//        String fileName = "image" + imageNumber + "." + suffix;
+//
+//
+//        AttributesImpl attr = new AttributesImpl();
+//        attr.addAttribute("", "src", "src", "CDATA", "embedded:" + fileName);
+//        attr.addAttribute("", "alt", "alt", "CDATA", fileName);
+//        xhtml.startElement("img", attr);
+//        xhtml.endElement("img");
+//
+//
+//        metadata.set(TikaCoreProperties.RESOURCE_NAME_KEY, fileName);
+//        metadata.set(TikaCoreProperties.EMBEDDED_RESOURCE_TYPE,
+//                TikaCoreProperties.EmbeddedResourceType.INLINE.toString());
+//
+//        if (extractInlineImageMetadataOnly) {
+//            extractInlineImageMetadataOnly(pdImage, metadata);
+//            return;
+//        }
+//
+//        if (embeddedDocumentExtractor.shouldParseEmbedded(metadata)) {
+//            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+//            if (pdImage instanceof PDImageXObject) {
+//                PDMetadataExtractor
+//                        .extract(((PDImageXObject) pdImage).getMetadata(), metadata, parseContext);
+//            }
+//            //extract the metadata contained outside of the image
+//            try {
+//                writeToBuffer(pdImage, suffix, useDirectJPEG, buffer);
+//            } catch (MissingImageReaderException e) {
+//                EmbeddedDocumentUtil.recordException(e, parentMetadata);
+//                return;
+//            } catch (IOException e) {
+//                EmbeddedDocumentUtil.recordEmbeddedStreamException(e, metadata);
+//                return;
+//            }
+//            try (InputStream embeddedIs = TikaInputStream.get(buffer.toByteArray())) {
+//                embeddedDocumentExtractor
+//                        .parseEmbedded(embeddedIs, new EmbeddedContentHandler(xhtml), metadata,
+//                                false);
+//            }
+//        }
+//
+//    }
+//
+//    private void extractInlineImageMetadataOnly(PDImage pdImage, Metadata metadata)
+//            throws IOException, SAXException {
+//        if (pdImage instanceof PDImageXObject) {
+//            PDMetadataExtractor
+//                    .extract(((PDImageXObject) pdImage).getMetadata(), metadata, parseContext);
+//        }
+//        metadata.set(Metadata.IMAGE_WIDTH, pdImage.getWidth());
+//        metadata.set(Metadata.IMAGE_LENGTH, pdImage.getHeight());
+//        //TODO: what else can we extract from the PDImage without rendering?
+//        ZeroByteFileException.IgnoreZeroByteFileException before =
+//                parseContext.get(ZeroByteFileException.IgnoreZeroByteFileException.class);
+//        try {
+//            parseContext.set(ZeroByteFileException.IgnoreZeroByteFileException.class,
+//                    ZeroByteFileException.IGNORE_ZERO_BYTE_FILE_EXCEPTION);
+//            embeddedDocumentExtractor.parseEmbedded(TikaInputStream.get(new byte[0]),
+//                    new EmbeddedContentHandler(xhtml), metadata, false);
+//        } finally {
+//            //replace whatever was there before
+//            parseContext.set(ZeroByteFileException.IgnoreZeroByteFileException.class, before);
+//        }
+//    }
+//
+//    private String getSuffix(PDImage pdImage, Metadata metadata) throws IOException {
+//        String suffix = pdImage.getSuffix();
+//
+//        if (suffix == null || suffix.equals("png")) {
+//            metadata.set(Metadata.CONTENT_TYPE, "image/png");
+//            suffix = "png";
+//        } else if (suffix.equals("jpg")) {
+//            metadata.set(Metadata.CONTENT_TYPE, "image/jpeg");
+//        } else if (suffix.equals("tiff")) {
+//            metadata.set(Metadata.CONTENT_TYPE, "image/tiff");
+//            suffix = "tif";
+//        } else if (suffix.equals("jpx")) {
+//            metadata.set(Metadata.CONTENT_TYPE, "image/jp2");
+//            // use jp2 suffix for file because jpx not known by windows
+//            suffix = "jp2";
+//        } else if (suffix.equals("jb2")) {
+//            //PDFBox resets suffix to png when image's suffix == jb2
+//            metadata.set(Metadata.CONTENT_TYPE, "image/x-jbig2");
+//        } else {
+//            //TODO: determine if we need to add more image types
+////                    throw new RuntimeException("EXTEN:" + extension);
+//        }
+//        if (hasMasks(pdImage)) {
+//            // TIKA-3040, PDFBOX-4771: can't save ARGB as JPEG
+//            suffix = "png";
+//        }
+//        return suffix;
+//    }
+//
+//    void handleCatchableIOE(IOException e) throws IOException {
+//        if (pdfParserConfig.isCatchIntermediateIOExceptions()) {
+//            if (e.getCause() instanceof SAXException && e.getCause().getMessage() != null &&
+//                    e.getCause().getMessage().contains("Your document contained more than")) {
+//                //TODO -- is there a cleaner way of checking for:
+//                // WriteOutContentHandler.WriteLimitReachedException?
+//                throw e;
+//            }
+//
+//            String msg = e.getMessage();
+//            if (msg == null) {
+//                msg = "IOException, no message";
+//            }
+//            parentMetadata.add(TikaCoreProperties.TIKA_META_EXCEPTION_WARNING, msg);
+//            exceptions.add(e);
+//        } else {
+//            throw e;
+//        }
+//    }
+//
+//    List<IOException> getExceptions() {
+//        return exceptions;
+//    }
 }

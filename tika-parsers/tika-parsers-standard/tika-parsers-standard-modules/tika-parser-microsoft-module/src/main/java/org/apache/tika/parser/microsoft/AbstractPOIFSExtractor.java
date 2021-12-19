@@ -94,32 +94,65 @@ abstract class AbstractPOIFSExtractor {
         return null;
     }
 
+    // PUTHURR
+
     protected void handleEmbeddedResource(TikaInputStream resource, String filename,
                                           String relationshipID, String mediaType,
                                           XHTMLContentHandler xhtml, boolean outputHtml)
             throws IOException, SAXException, TikaException {
-        handleEmbeddedResource(resource, filename, relationshipID, null, mediaType, xhtml,
-                outputHtml);
+        handleEmbeddedResource(0, resource, filename, relationshipID, null, mediaType,
+                xhtml, outputHtml);
+    }
+    protected void handleEmbeddedResource(int sourceId, TikaInputStream resource, String filename,
+                                          String relationshipID, String mediaType, XHTMLContentHandler xhtml,
+                                          boolean outputHtml)
+            throws IOException, SAXException, TikaException {
+        handleEmbeddedResource(sourceId, resource, filename, relationshipID, null, mediaType,
+                xhtml, outputHtml);
     }
 
     protected void handleEmbeddedResource(TikaInputStream resource, String filename,
-                                          String relationshipID, ClassID storageClassID,
-                                          String mediaType, XHTMLContentHandler xhtml,
+                                          String relationshipID, ClassID storageClassID, String mediaType,
+                                          XHTMLContentHandler xhtml,
                                           boolean outputHtml)
             throws IOException, SAXException, TikaException {
-        handleEmbeddedResource(resource, new Metadata(), filename, relationshipID, storageClassID,
-                mediaType, xhtml, outputHtml);
+        handleEmbeddedResource(0, resource, new Metadata(), filename,
+                relationshipID, storageClassID, mediaType, xhtml, outputHtml);
     }
 
-    protected void handleEmbeddedResource(TikaInputStream resource, Metadata embeddedMetadata,
-                                          String filename, String relationshipID,
-                                          ClassID storageClassID, String mediaType,
-                                          XHTMLContentHandler xhtml, boolean outputHtml)
+    protected void handleEmbeddedResource(int sourceId, TikaInputStream resource, String filename,
+                                          String relationshipID, ClassID storageClassID, String mediaType,
+                                          XHTMLContentHandler xhtml,
+                                          boolean outputHtml)
+            throws IOException, SAXException, TikaException {
+        handleEmbeddedResource(sourceId, resource, new Metadata(), filename,
+                relationshipID, storageClassID, mediaType, xhtml, outputHtml);
+    }
+
+    protected void handleEmbeddedResource(TikaInputStream resource, Metadata embeddedMetadata, String filename,
+                                          String relationshipID, ClassID storageClassID, String mediaType,
+                                          XHTMLContentHandler xhtml,
+                                          boolean outputHtml)
+            throws IOException, SAXException, TikaException {
+        handleEmbeddedResource(0, resource, embeddedMetadata,filename,relationshipID,storageClassID,
+                mediaType,xhtml,outputHtml);
+    }
+
+    protected void handleEmbeddedResource(int sourceId,
+                                          TikaInputStream resource,
+                                          Metadata embeddedMetadata,
+                                          String filename,
+                                          String relationshipID,
+                                          ClassID storageClassID,
+                                          String mediaType,
+                                          XHTMLContentHandler xhtml,
+                                          boolean outputHtml)
             throws IOException, SAXException, TikaException {
 
         try {
 
             if (filename != null) {
+                embeddedMetadata.set(Metadata.TIKA_MIME_FILE, filename);
                 embeddedMetadata.set(TikaCoreProperties.RESOURCE_NAME_KEY, filename);
             }
             if (relationshipID != null) {
@@ -146,16 +179,29 @@ abstract class AbstractPOIFSExtractor {
      */
     protected void handleEmbeddedOfficeDoc(DirectoryEntry dir, XHTMLContentHandler xhtml)
             throws IOException, SAXException, TikaException {
-        handleEmbeddedOfficeDoc(dir, null, xhtml);
+        handleEmbeddedOfficeDoc(0, dir, null, xhtml);
     }
 
+    protected void handleEmbeddedOfficeDoc(int sourceId,
+                                           DirectoryEntry dir, XHTMLContentHandler xhtml)
+            throws IOException, SAXException, TikaException {
+        handleEmbeddedOfficeDoc(sourceId, dir, null, xhtml);
+    }
     /**
      * Handle an office document that's embedded at the POIFS level
      */
-    protected void handleEmbeddedOfficeDoc(DirectoryEntry dir, String resourceName,
+    protected void handleEmbeddedOfficeDoc(DirectoryEntry dir,
+                                           String resourceName,
                                            XHTMLContentHandler xhtml)
             throws IOException, SAXException, TikaException {
-
+        handleEmbeddedOfficeDoc(0, dir, resourceName, xhtml);
+    }
+    /**
+     * Handle an office document that's embedded at the POIFS level
+     */
+    protected void handleEmbeddedOfficeDoc(int sourceId,
+            DirectoryEntry dir, String resourceName, XHTMLContentHandler xhtml)
+            throws IOException, SAXException, TikaException {
 
         // Is it an embedded OLE2 document, or an embedded OOXML document?
         //first try for ooxml
@@ -175,8 +221,8 @@ abstract class AbstractPOIFSExtractor {
                     EmbeddedDocumentUtil.recordEmbeddedStreamException(e, parentMetadata);
                     return;
                 }
-                handleEmbeddedResource(stream, null, dir.getName(), dir.getStorageClsid(),
-                        type.toString(), xhtml, true);
+                handleEmbeddedResource(sourceId, stream, null, dir.getName(),
+                        dir.getStorageClsid(), type.toString(), xhtml, true);
                 return;
             }
         }

@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.tika</groupId>
     <artifactId>tika-parsers-ml</artifactId>
-    <version>2.2.2-SNAPSHOT</version>
+    <version>${revision}</version>
   </parent>
 
   <artifactId>tika-dl</artifactId>

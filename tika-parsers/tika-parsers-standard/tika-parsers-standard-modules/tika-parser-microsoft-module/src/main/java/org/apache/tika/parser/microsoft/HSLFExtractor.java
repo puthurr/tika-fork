@@ -37,6 +37,7 @@ import org.apache.poi.hslf.usermodel.HSLFNotes;
 import org.apache.poi.hslf.usermodel.HSLFObjectData;
 import org.apache.poi.hslf.usermodel.HSLFObjectShape;
 import org.apache.poi.hslf.usermodel.HSLFPictureData;
+import org.apache.poi.hslf.usermodel.HSLFPictureShape;
 import org.apache.poi.hslf.usermodel.HSLFShape;
 import org.apache.poi.hslf.usermodel.HSLFSlide;
 import org.apache.poi.hslf.usermodel.HSLFSlideShow;
@@ -59,6 +60,7 @@ import org.apache.tika.exception.TikaException;
 import org.apache.tika.extractor.EmbeddedDocumentUtil;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.mime.MediaType;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.sax.XHTMLContentHandler;
@@ -69,6 +71,7 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
     public HSLFExtractor(ParseContext context, Metadata metadata) {
         super(context, metadata);
     }
+
     private final Set<Integer> processedEmbeddedObjects = new HashSet<>();
 
     // remove trailing paragraph break
@@ -78,12 +81,14 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
         return fragment.replaceFirst("\\r$", "");
     }
 
-    protected void parse(POIFSFileSystem filesystem, XHTMLContentHandler xhtml)
+    protected void parse(
+            POIFSFileSystem filesystem, XHTMLContentHandler xhtml)
             throws IOException, SAXException, TikaException {
         parse(filesystem.getRoot(), xhtml);
     }
 
-    protected void parse(DirectoryNode root, XHTMLContentHandler xhtml)
+    protected void parse(
+            DirectoryNode root, XHTMLContentHandler xhtml)
             throws IOException, SAXException, TikaException {
         List<HSLFSlide> _slides;
 
@@ -94,10 +99,22 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
 
             /* Iterate over slides and extract text */
             for (HSLFSlide slide : _slides) {
-                xhtml.startElement("div", "class", "slide");
+
+                AttributesImpl attributes = new AttributesImpl();
+                attributes.addAttribute("", "class", "class", "CDATA", "slide");
+                try {
+                    attributes.addAttribute("", "id", "id", "CDATA", String.valueOf(slide.getSlideNumber()));
+                    if (slide.getTitle() != null)
+                        attributes.addAttribute("", "title", "title", "CDATA", slide.getTitle().trim());
+                } catch (Exception e) {
+                    // Do Nothing
+                }
+                xhtml.startElement("div", attributes);
+
+//            xhtml.startElement("div", "class", "slide");
                 HeadersFooters slideHeaderFooters =
-                        (officeParserConfig.isIncludeHeadersAndFooters()) ? slide.getHeadersFooters() :
-                                null;
+                        (officeParserConfig.isIncludeHeadersAndFooters()) ?
+                                slide.getHeadersFooters() : null;
 
                 HeadersFooters notesHeadersFooters = (officeParserConfig.isIncludeHeadersAndFooters()) ?
                         ss.getNotesHeadersFooters() : null;
@@ -148,14 +165,17 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
                 handleNotes(slide, notesHeadersFooters, xhtml);
 
                 // Now any embedded resources
-                handleSlideEmbeddedResources(slide, xhtml);
+                handleSlideEmbeddedResources(slide.getSlideNumber(), slide, xhtml);
 
                 // Slide complete
                 xhtml.endElement("div");
             }
 
-            handleSlideEmbeddedPictures(ss, xhtml);
-            handleShowEmbeddedResources(ss, xhtml);
+            // PUTHURR
+            if (officeParserConfig.isIncludeSlideShowEmbeddedResources()) {
+                handleSlideShowEmbeddedPictures(ss, xhtml);
+                handleShowEmbeddedResources(ss, xhtml);
+            }
 
             if (officeParserConfig.isExtractMacros()) {
                 extractMacros(ss, xhtml);
@@ -174,7 +194,7 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
      **/
     private void handleShowEmbeddedResources(HSLFSlideShow ss, XHTMLContentHandler xhtml)
             throws SAXException {
-        
+
         HSLFObjectData[] objectData = ss.getEmbeddedObjects();
         int i = 0;
         for (HSLFObjectData d : objectData) {
@@ -276,7 +296,7 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
             xhtml.characters(notesHeaderFooters.getHeaderText());
             xhtml.endElement("p");
         }
-        xhtml.startElement("div", "class", "notes-content");
+        xhtml.startElement("div", "class", "slide-notes-content");
         // Notes text
         textRunsToText(xhtml, notes.getTextParagraphs());
 
@@ -302,7 +322,7 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
             xhtml.endElement("p");
         }
         // Now any embedded resources
-        handleSlideEmbeddedResources(notes, xhtml);
+        handleSlideEmbeddedResources(slide.getSlideNumber(), notes, xhtml);
         //end notes
         xhtml.endElement("div");
     }
@@ -490,41 +510,53 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
         }
     }
 
-    private void handleSlideEmbeddedPictures(HSLFSlideShow slideshow, XHTMLContentHandler xhtml)
+    // Handling embedded images at the SlideShow or Notes level as opposed to embedded in a particular slide.
+    private void handleSlideShowEmbeddedPictures(HSLFSlideShow slideshow, XHTMLContentHandler xhtml)
             throws TikaException, SAXException, IOException {
         for (HSLFPictureData pic : slideshow.getPictureData()) {
-            String mediaType;
-
-            switch (pic.getType()) {
-                case EMF:
-                    mediaType = "image/emf";
-                    break;
-                case WMF:
-                    mediaType = "image/wmf";
-                    break;
-                case DIB:
-                    mediaType = "image/bmp";
-                    break;
-                default:
-                    mediaType = pic.getContentType();
-                    break;
-            }
-            byte[] data = null;
-            try {
-                data = pic.getData();
-            } catch (Exception e) {
-                EmbeddedDocumentUtil.recordEmbeddedStreamException(e, parentMetadata);
-                continue;
-            }
-            try (TikaInputStream picIs = TikaInputStream.get(data)) {
-                handleEmbeddedResource(picIs, null, null, mediaType, xhtml, false);
-            }
+            handleSlideEmbeddedPicture(0, pic, xhtml);
         }
     }
 
-    private void handleSlideEmbeddedResources(ShapeContainer shapeContainer,
-                                              XHTMLContentHandler xhtml)
-            throws TikaException, SAXException {
+    private void handleSlideEmbeddedPicture(int slideNumber, HSLFPictureData pic, XHTMLContentHandler xhtml)
+            throws TikaException, SAXException, IOException {
+        String mediaType;
+        switch (pic.getType()) {
+            case EMF:
+                mediaType = "image/emf";
+                break;
+            case WMF:
+                mediaType = "image/wmf";
+                break;
+            case DIB:
+                mediaType = "image/bmp";
+                break;
+            default:
+                mediaType = pic.getContentType();
+                break;
+        }
+        byte[] data = null;
+        try {
+            data = pic.getData();
+        } catch (Exception e) {
+            EmbeddedDocumentUtil.recordEmbeddedStreamException(e, parentMetadata);
+            return;
+        }
+        Metadata embeddedMetadata = new Metadata();
+        embeddedMetadata.set(Metadata.CONTENT_TYPE, mediaType);
+        embeddedMetadata.set(TikaCoreProperties.EMBEDDED_RESOURCE_TYPE,
+                TikaCoreProperties.EmbeddedResourceType.INLINE.toString());
+        String ext = getTikaConfig().getMimeRepository().forName(mediaType).getExtension();
+        embeddedMetadata.set(TikaCoreProperties.RESOURCE_NAME_KEY, officeParserConfig.getImageFilename(slideNumber,
+                pic.getIndex(), ext));
+
+        try (TikaInputStream picIs = TikaInputStream.get(data)) {
+            handleEmbeddedResource(0, picIs, embeddedMetadata, null, null, null, mediaType, xhtml, false);
+        }
+    }
+
+    private void handleSlideEmbeddedResources(int slideNumber, ShapeContainer shapeContainer, XHTMLContentHandler xhtml)
+            throws TikaException, SAXException, IOException {
         List<HSLFShape> shapes = getShapes(shapeContainer);
         if (shapes == null) {
             return;
@@ -566,6 +598,8 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
                         String mediaType = null;
                         if ("Excel.Chart.8".equals(oleShape.getProgId())) {
                             mediaType = "application/vnd.ms-excel";
+                            //If this is chart there ia an associated picture...
+                            handleSlideEmbeddedPictureObject(slideNumber, shape, xhtml);
                         } else {
                             MediaType mt =
                                     getTikaConfig().getDetector().detect(stream, new Metadata());
@@ -582,19 +616,26 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
                                 throw new IOException(e);
                             }
                             try {
-                                handleEmbeddedOfficeDoc(poifs.getRoot(), objID, xhtml);
+                                handleEmbeddedOfficeDoc(slideNumber,
+                                        poifs.getRoot(),
+                                        objID,
+                                        xhtml);
                             } finally {
                                 if (poifs != null) {
                                     poifs.close();
                                 }
                             }
                         } else {
-                            handleEmbeddedResource(stream, objID, objID, mediaType, xhtml, false);
+                            handleEmbeddedResource(slideNumber, stream, objID, objID, mediaType, xhtml, false);
                         }
                     } catch (IOException e) {
                         EmbeddedDocumentUtil.recordEmbeddedStreamException(e, parentMetadata);
                     }
                 }
+            }
+            // Handling of images links in corresponding slide 
+            else if (shape instanceof HSLFPictureShape) {
+                handleSlideEmbeddedPictureObject(slideNumber, shape, xhtml);
             }
         }
     }
@@ -611,4 +652,50 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
         }
     }
 
+    private void handleSlideEmbeddedPictureObject(int slideNumber, HSLFShape shape, XHTMLContentHandler xhtml)
+            throws TikaException, SAXException, IOException {
+        HSLFPictureShape img = (HSLFPictureShape) shape;
+        HSLFPictureData imgdata = null;
+        try {
+            imgdata = img.getPictureData();
+        } catch (NullPointerException e) {
+            /* getObjectData throws NPE some times. */
+            EmbeddedDocumentUtil.recordEmbeddedStreamException(e, parentMetadata);
+            return;
+        }
+        if (imgdata != null) {
+            String objID = Integer.toString(imgdata.getIndex());
+
+            AttributesImpl attributes = new AttributesImpl();
+            attributes.addAttribute("", "id", "id", "CDATA", objID);
+            attributes.addAttribute("", "class", "class", "CDATA", "embedded");
+            try {
+//                attributes.addAttribute("", "idx", "idx", "CDATA", String.valueOf(img.getPictureIndex())); 
+                if (img.getPictureName() != null)
+                    attributes.addAttribute("", "title", "title", "CDATA", img.getPictureName().trim());
+                if (imgdata.getContentType() != null) {
+                    attributes.addAttribute("", "contenttype", "contenttype", "CDATA", imgdata.getContentType());
+                    String ext = getTikaConfig().getMimeRepository().forName(imgdata.getContentType()).getExtension();
+//                    attributes.addAttribute("", "src", "src", "CDATA", officeParserConfig.getImageFilename
+//                    (slideNumber,imgdata.getIndex(),ext));
+                    attributes.addAttribute("", "src", "src", "CDATA", officeParserConfig.getImageFilename(0,
+                            imgdata.getIndex(), ext));
+
+                }
+                attributes.addAttribute("", "width", "witdh", "CDATA",
+                        String.valueOf(imgdata.getImageDimensionInPixels().width));
+                attributes.addAttribute("", "height", "height", "CDATA",
+                        String.valueOf(imgdata.getImageDimensionInPixels().height));
+                attributes.addAttribute("", "size", "size", "CDATA", String.valueOf(imgdata.getRawData().length));
+            } catch (Exception e) {
+                // Do Nothing
+            }
+            xhtml.startElement("img", attributes);
+            xhtml.endElement("img");
+
+            if (!officeParserConfig.isIncludeSlideShowEmbeddedResources()) {
+                handleSlideEmbeddedPicture(slideNumber, imgdata, xhtml);
+            }
+        }
+    }
 }

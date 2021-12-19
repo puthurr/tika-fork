@@ -190,7 +190,7 @@ public class PDFParserTest extends TikaTest {
 
         assertEquals(3, tracker.filenames.size());
         assertEquals(3, tracker.mediaTypes.size());
-        assertEquals("image1.emf", tracker.filenames.get(0));
+        assertEquals("image-00000-00001.emf", tracker.filenames.get(0));
         assertNull(tracker.filenames.get(1));
         assertEquals("Test.docx", tracker.filenames.get(2));
         assertEquals(TYPE_EMF, tracker.mediaTypes.get(0));
@@ -223,7 +223,7 @@ public class PDFParserTest extends TikaTest {
         List<Metadata> metadatas = handler.getMetadataList();
         assertEquals(5, metadatas.size());
         assertNull(metadatas.get(0).get(TikaCoreProperties.RESOURCE_NAME_KEY));
-        assertEquals("image0.jpg", metadatas.get(1).get(TikaCoreProperties.RESOURCE_NAME_KEY));
+        assertEquals("image-00001-00001.jpg", metadatas.get(1).get(TikaCoreProperties.RESOURCE_NAME_KEY));
         assertEquals("Press Quality(1).joboptions",
                 metadatas.get(3).get(TikaCoreProperties.RESOURCE_NAME_KEY));
         assertEquals("Unit10.doc", metadatas.get(4).get(TikaCoreProperties.RESOURCE_NAME_KEY));
@@ -346,7 +346,7 @@ public class PDFParserTest extends TikaTest {
         assertEquals("352", metadatas.get(1).get("width"));
 
         assertNull(metadatas.get(0).get(TikaCoreProperties.RESOURCE_NAME_KEY));
-        assertEquals("image0.jb2", metadatas.get(1).get(TikaCoreProperties.RESOURCE_NAME_KEY));
+        assertEquals("image-00001-00001.jb2", metadatas.get(1).get(TikaCoreProperties.RESOURCE_NAME_KEY));
         assertEquals(MediaType.image("x-jbig2").toString(),
                 metadatas.get(1).get(Metadata.CONTENT_TYPE));
     }

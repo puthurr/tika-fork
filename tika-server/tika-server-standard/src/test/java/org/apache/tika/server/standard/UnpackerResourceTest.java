@@ -53,16 +53,16 @@ public class UnpackerResourceTest extends CXFTestBase {
     private static final String WAV1_NAME = "_1310388059/MSj00974840000[1].wav";
     private static final String WAV2_MD5 = "3bbd42fb1ac0e46a95350285f16d9596";
     private static final String WAV2_NAME = "_1310388058/MSj00748450000[1].wav";
-    private static final String JPG_NAME = "image1.jpg";
+    private static final String JPG_NAME = "image-00000-00001.jpg";
     private static final String XSL_IMAGE1_MD5 = "68ead8f4995a3555f48a2f738b2b0c3d";
     private static final String JPG_MD5 = XSL_IMAGE1_MD5;
-    private static final String JPG2_NAME = "image2.jpg";
+    private static final String JPG2_NAME = "image-00000-00002.jpg";
     private static final String JPG2_MD5 = "b27a41d12c646d7fc4f3826cf8183c68";
     private static final String TEST_DOCX_IMAGE = "test-documents/2pic.docx";
     private static final String DOCX_IMAGE1_MD5 = "5516590467b069fa59397432677bad4d";
     private static final String DOCX_IMAGE2_MD5 = "a5dd81567427070ce0a2ff3e3ef13a4c";
-    private static final String DOCX_IMAGE1_NAME = "image1.jpeg";
-    private static final String DOCX_IMAGE2_NAME = "image2.jpeg";
+    private static final String DOCX_IMAGE1_NAME = "image-00000-00001.jpeg";
+    private static final String DOCX_IMAGE2_NAME = "image-00000-00002.jpeg";
     private static final String DOCX_EXE1_MD5 = "d71ffa0623014df725f8fd2710de4411";
     private static final String DOCX_EXE1_NAME = "GMapTool.exe";
     private static final String DOCX_EXE2_MD5 = "2485435c7c22d35f2de9b4c98c0c2e1a";
@@ -213,8 +213,11 @@ public class UnpackerResourceTest extends CXFTestBase {
                 .accept("application/zip")
                 .put(ClassLoader.getSystemResourceAsStream("test-documents/testOCR.pdf"));
         Map<String, String> results = readZipArchive((InputStream) response.getEntity());
-        assertTrue(results.containsKey("image0.png"));
-        String md5 = results.get("image0.png");
+        // PUTHURR
+        //        assertTrue(results.containsKey("image0.png"));
+        //        String md5 = results.get("image0.png");
+        assertTrue(results.containsKey("image-00001-00001.png"));
+        String md5 = results.get("image-00001-00001.png");
         assertTrue(
                 //pre Java 11
                 md5.equals("7c2f14acbb737672a1245f4ceb50622a") ||

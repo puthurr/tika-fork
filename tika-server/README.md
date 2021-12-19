@@ -20,6 +20,11 @@
 
 https://cwiki.apache.org/confluence/display/TIKA/TikaJAXRS
 
+Building tika-server skipping tests
+-----------------------------------
+
+    mvn clean install -am -pl :tika-server-standard -DskipTests
+
 Running
 -------
 ```

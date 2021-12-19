@@ -111,9 +111,9 @@ public class WordParserTest extends TikaTest {
         xml = getXML("testWORD_3imgs.doc").xml;
 
         // Images 1-3
-        assertTrue(xml.contains("src=\"embedded:image1.png\""), "Image not found in:\n" + xml);
-        assertTrue(xml.contains("src=\"embedded:image2.jpg\""), "Image not found in:\n" + xml);
-        assertTrue(xml.contains("src=\"embedded:image3.png\""), "Image not found in:\n" + xml);
+        assertTrue(xml.contains("src=\"image-00000-00001.png\""),"Image not found in:\n" + xml);
+        assertTrue(xml.contains("src=\"image-00000-00002.jpg\""),"Image not found in:\n" + xml);
+        assertTrue(xml.contains("src=\"image-00000-00003.png\""),"Image not found in:\n" + xml);
 
         // Text too
         assertTrue(xml.contains("<p>The end!"));

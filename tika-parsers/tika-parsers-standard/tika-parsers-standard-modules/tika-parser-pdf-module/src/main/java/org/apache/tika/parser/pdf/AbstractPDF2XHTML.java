@@ -150,6 +150,10 @@ class AbstractPDF2XHTML extends PDFTextStripper {
     int unmappedUnicodeCharsPerPage = 0;
     int totalCharsPerPage = 0;
 
+    // PUTHURR
+    // Total number of pages
+    int totalPagesCount = -1;
+
     AbstractPDF2XHTML(PDDocument pdDocument, ContentHandler handler, ParseContext context,
                       Metadata metadata, PDFParserConfig config) throws IOException {
         this.pdDocument = pdDocument;
@@ -196,7 +200,16 @@ class AbstractPDF2XHTML extends PDFTextStripper {
     @Override
     protected void startPage(PDPage page) throws IOException {
         try {
-            xhtml.startElement("div", "class", "page");
+            //xhtml.startElement("div", "class", "page");
+            AttributesImpl attributes = new AttributesImpl();
+            attributes.addAttribute("", "class", "class", "CDATA", "page");
+            try {
+                attributes.addAttribute("", "id", "id", "CDATA", String.valueOf(getCurrentPageNo()));
+            } catch (Exception e) {
+                // Do Nothing
+            }
+            xhtml.startElement("div", attributes);
+
         } catch (SAXException e) {
             throw new IOException("Unable to start a page", e);
         }
@@ -529,7 +542,7 @@ class AbstractPDF2XHTML extends PDFTextStripper {
                     if (fann.getFile() instanceof PDComplexFileSpecification) {
                         handlePDComplexFileSpec(fann.getAttachmentName(),
                                 "annotationFileAttachment",
-                                (PDComplexFileSpecification)fann.getFile());
+                                (PDComplexFileSpecification) fann.getFile());
                     }
                 } else if (annotation instanceof PDAnnotationWidget) {
                     handleWidget((PDAnnotationWidget) annotation);
@@ -1036,6 +1049,11 @@ class AbstractPDF2XHTML extends PDFTextStripper {
     @Override
     public int getCurrentPageNo() {
         return pageIndex + 1;
+    }
+
+    // PUTHURR
+    public int getTotalPagesCount() {
+        return totalPagesCount;
     }
 
     /**
