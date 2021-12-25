@@ -528,6 +528,15 @@ public class PDFParser extends AbstractParser implements Initializable {
         defaultConfig.setExtractInlineImages(extractInlineImages);
     }
 
+    // PUTHURR
+
+    @Field
+    void setSinglePagePDFAsImage(boolean singlePagePDFAsImage) {
+        defaultConfig.setSinglePagePDFAsImage(singlePagePDFAsImage);
+    }
+
+    // END PUTHURR
+
     @Field
     void setExtractInlineImageMetadataOnly(boolean extractInlineImageMetadataOnly) {
         defaultConfig.setExtractInlineImageMetadataOnly(extractInlineImageMetadataOnly);

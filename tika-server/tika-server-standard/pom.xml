@@ -101,11 +101,29 @@
       <version>3.0.3</version>
     </dependency>
 
+    <!-- https://mvnrepository.com/artifact/com.azure/azure-core -->
+    <dependency>
+      <groupId>com.azure</groupId>
+      <artifactId>azure-core</artifactId>
+      <version>1.23.1</version>
+    </dependency>
+
     <!-- https://mvnrepository.com/artifact/com.azure/azure-storage-blob -->
     <dependency>
       <groupId>com.azure</groupId>
       <artifactId>azure-storage-blob</artifactId>
       <version>12.14.2</version>
+      <exclusions>
+        <exclusion>
+          <groupId>com.azure</groupId>
+          <artifactId>azure-core</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>io.projectreactor</groupId>
+          <artifactId>reactor-core</artifactId>
+        </exclusion>
+      </exclusions>
+<!--
       <scope>compile</scope>
       <exclusions>
         <exclusion>
@@ -121,9 +139,9 @@
           <artifactId>*</artifactId>
         </exclusion>
       </exclusions>
+      -->
     </dependency>
 
-    
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
       <artifactId>log4j-core</artifactId>

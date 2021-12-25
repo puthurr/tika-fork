@@ -836,6 +836,7 @@ public class PDFParserConfig extends AbstractParserConfig implements Serializabl
      */
     public void setAllPagesAsImages(boolean allPagesAsImages) {
         this.allPagesAsImages = allPagesAsImages;
+        userConfigured.add("allPagesAsImages");
     }
 
     /**
@@ -850,6 +851,7 @@ public class PDFParserConfig extends AbstractParserConfig implements Serializabl
      */
     public void setFirstPageAsCoverImage(boolean firstPageAsCoverImage) {
         this.firstPageAsCoverImage = firstPageAsCoverImage;
+        userConfigured.add("firstPageAsCoverImage");
     }
 
     /**
@@ -864,6 +866,7 @@ public class PDFParserConfig extends AbstractParserConfig implements Serializabl
      */
     public void setSinglePagePDFAsImage(boolean singlePagePDFAsImage) {
         this.singlePagePDFAsImage = singlePagePDFAsImage;
+        userConfigured.add("singlePagePDFAsImage");
     }
 
     /**
@@ -878,6 +881,7 @@ public class PDFParserConfig extends AbstractParserConfig implements Serializabl
      */
     public void setStripedImagesHandling(boolean stripedImagesHandling) {
         this.stripedImagesHandling = stripedImagesHandling;
+        userConfigured.add("stripedImagesHandling");
     }
 
     /**
@@ -892,6 +896,7 @@ public class PDFParserConfig extends AbstractParserConfig implements Serializabl
      */
     public void setStripedImagesThreshold(int stripedImagesThreshold) {
         this.stripedImagesThreshold = stripedImagesThreshold;
+        userConfigured.add("stripedImagesThreshold");
     }
 
     /**
@@ -906,6 +911,7 @@ public class PDFParserConfig extends AbstractParserConfig implements Serializabl
      */
     public void setGraphicsToImage(boolean graphicsToImage) {
         this.graphicsToImage = graphicsToImage;
+        userConfigured.add("graphicsToImage");
     }
 
     /**
@@ -920,6 +926,7 @@ public class PDFParserConfig extends AbstractParserConfig implements Serializabl
      */
     public void setGraphicsToImageThreshold(int graphicsToImageThreshold) {
         this.graphicsToImageThreshold = graphicsToImageThreshold;
+        userConfigured.add("graphicsToImageThreshold");
     }
 
     /**
@@ -934,6 +941,7 @@ public class PDFParserConfig extends AbstractParserConfig implements Serializabl
      */
     public void setJB2Images(boolean jb2Images) {
         this.jB2Images = jb2Images;
+        userConfigured.add("jB2Images");
     }
 
     /**
@@ -948,6 +956,7 @@ public class PDFParserConfig extends AbstractParserConfig implements Serializabl
      */
     public void setJB2ImagesThreshold(int jb2ImagesThreshold) {
         this.jB2ImagesThreshold = jb2ImagesThreshold;
+        userConfigured.add("jB2ImagesThreshold");
     }
 
     /* end section PUTHURR */
