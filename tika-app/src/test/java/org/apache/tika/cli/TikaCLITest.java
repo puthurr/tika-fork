@@ -453,7 +453,7 @@ public class TikaCLITest {
             assertNotNull(tempFileNames);
             String allFiles = String.join(" : ", tempFileNames);
 
-            File jpeg = new File(tempFile, "image0.jpg");
+            File jpeg = new File(tempFile, "image-00001-00001.jpg");
             //tiff isn't extracted without optional image dependency
 //            File tiff = new File(tempFile, "image1.tif");
             File jobOptions = new File(tempFile, "Press Quality(1).joboptions");
