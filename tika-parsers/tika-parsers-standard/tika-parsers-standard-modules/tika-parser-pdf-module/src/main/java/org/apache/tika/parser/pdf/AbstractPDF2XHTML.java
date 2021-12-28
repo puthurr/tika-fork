@@ -55,7 +55,6 @@ import org.apache.pdfbox.pdmodel.PDDocumentNameDictionary;
 import org.apache.pdfbox.pdmodel.PDEmbeddedFilesNameTreeNode;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageTree;
-import org.apache.pdfbox.pdmodel.common.COSObjectable;
 import org.apache.pdfbox.pdmodel.common.PDDestinationOrAction;
 import org.apache.pdfbox.pdmodel.common.PDNameTreeNode;
 import org.apache.pdfbox.pdmodel.common.filespecification.PDComplexFileSpecification;
@@ -78,6 +77,9 @@ import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotationFileAttachme
 import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotationMarkup;
 import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotationWidget;
 import org.apache.pdfbox.pdmodel.interactive.digitalsignature.PDSignature;
+import org.apache.pdfbox.pdmodel.interactive.documentnavigation.destination.PDDestination;
+import org.apache.pdfbox.pdmodel.interactive.documentnavigation.destination.PDNamedDestination;
+import org.apache.pdfbox.pdmodel.interactive.documentnavigation.destination.PDPageDestination;
 import org.apache.pdfbox.pdmodel.interactive.documentnavigation.outline.PDDocumentOutline;
 import org.apache.pdfbox.pdmodel.interactive.documentnavigation.outline.PDOutlineItem;
 import org.apache.pdfbox.pdmodel.interactive.documentnavigation.outline.PDOutlineNode;
@@ -827,32 +829,35 @@ class AbstractPDF2XHTML extends PDFTextStripper {
     void extractBookmarkText() throws SAXException, IOException, TikaException {
         PDDocumentOutline outline = document.getDocumentCatalog().getDocumentOutline();
         if (outline != null) {
-            Set<COSObjectable> seen = new HashSet<>();
-            extractBookmarkText(outline, seen, 0);
+            xhtml.startElement("div", "class", "outlines");
+            extractBookmarkText(outline);
+            xhtml.endElement("div");
         }
     }
 
-    void extractBookmarkText(PDOutlineNode bookmark, Set<COSObjectable> seen, int itemCount)
-            throws SAXException, IOException, TikaException {
+    void extractBookmarkText(PDOutlineNode bookmark) throws SAXException, IOException, TikaException {
         PDOutlineItem current = bookmark.getFirstChild();
-        if (itemCount > MAX_BOOKMARK_ITEMS) {
-            return;
-        }
+
+        //PUTHURR - PDF Parser - org.apache.pdfbox.pdmodel.interactive.documentnavigation.outline #4
         if (current != null) {
-            if (seen.contains(current)) {
-                return;
-            }
             xhtml.startElement("ul");
             while (current != null) {
-                seen.add(current);
-                xhtml.startElement("li");
+                PDDestination destination = current.getDestination();
+                if (destination instanceof PDPageDestination) {
+                    PDPageDestination pdPageDestination = (PDPageDestination) destination;
+                    xhtml.startElement("li", "page", String.valueOf(pdPageDestination.retrievePageNumber()));
+                } else if (destination instanceof PDNamedDestination) {
+                    PDNamedDestination pdNamedDestination = (PDNamedDestination) destination;
+                    xhtml.startElement("li", "name", pdNamedDestination.getNamedDestination());
+                } else {
+                    xhtml.startElement("li");
+                }
                 xhtml.characters(current.getTitle());
                 xhtml.endElement("li");
                 handleDestinationOrAction(current.getAction(), ActionTrigger.BOOKMARK);
                 // Recurse:
-                extractBookmarkText(current, seen, itemCount + 1);
+                extractBookmarkText(current);
                 current = current.getNextSibling();
-                itemCount++;
             }
             xhtml.endElement("ul");
         }
@@ -1075,6 +1080,10 @@ class AbstractPDF2XHTML extends PDFTextStripper {
         //                && (endBookmarkPageNumber == -1 ||
         //                currentPageNo <= endBookmarkPageNumber))
         //        {
+
+        // PUTHURR : Store the total number of pages.
+        totalPagesCount = pages.getCount();
+
         super.setStartPage(-1);
         for (PDPage page : pages) {
             if (getCurrentPageNo() >= getStartPage() && getCurrentPageNo() <= getEndPage()) {

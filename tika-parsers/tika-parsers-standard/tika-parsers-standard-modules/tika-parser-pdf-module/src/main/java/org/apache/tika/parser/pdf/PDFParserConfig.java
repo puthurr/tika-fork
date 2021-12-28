@@ -822,12 +822,13 @@ public class PDFParserConfig extends AbstractParserConfig implements Serializabl
         }
         return updated;
     }
+
     /* region PUTHURR */
 
     /**
      * @return allPagesAsImages
      */
-    public boolean getAllPagesAsImages() {
+    public boolean isAllPagesAsImages() {
         return allPagesAsImages;
     }
 
@@ -842,7 +843,7 @@ public class PDFParserConfig extends AbstractParserConfig implements Serializabl
     /**
      * @return firstPageAsCoverImage
      */
-    public boolean getFirstPageAsCoverImage() {
+    public boolean isFirstPageAsCoverImage() {
         return firstPageAsCoverImage;
     }
 
@@ -857,7 +858,7 @@ public class PDFParserConfig extends AbstractParserConfig implements Serializabl
     /**
      * @return PDF with a single page could be extracted as one rendered-page image
      */
-    public boolean getSinglePagePDFAsImage() {
+    public boolean isSinglePagePDFAsImage() {
         return singlePagePDFAsImage;
     }
 
@@ -872,7 +873,7 @@ public class PDFParserConfig extends AbstractParserConfig implements Serializabl
     /**
      * @return striped images handling in a page
      */
-    public boolean getStripedImagesHandling() {
+    public boolean isStripedImagesHandling() {
         return stripedImagesHandling;
     }
 
@@ -902,7 +903,7 @@ public class PDFParserConfig extends AbstractParserConfig implements Serializabl
     /**
      * @return Check for Graphics elements in a page to convert it to an image or not
      */
-    public boolean getGraphicsToImage() {
+    public boolean isGraphicsToImage() {
         return graphicsToImage;
     }
 
@@ -932,7 +933,7 @@ public class PDFParserConfig extends AbstractParserConfig implements Serializabl
     /**
      * @return Check for JB2 images in a page to convert it to an image or not
      */
-    public boolean getJB2Images() {
+    public boolean isJB2Images() {
         return jB2Images;
     }
 
@@ -1031,14 +1032,14 @@ public class PDFParserConfig extends AbstractParserConfig implements Serializabl
         }
 
         // PUTHURR
-        if (getAllPagesAsImages() != (config.getAllPagesAsImages())) return false;
-        if (getFirstPageAsCoverImage() != (config.getFirstPageAsCoverImage())) return false;
-        if (getSinglePagePDFAsImage() != (config.getSinglePagePDFAsImage())) return false;
-        if (getStripedImagesHandling() != (config.getStripedImagesHandling())) return false;
+        if (isAllPagesAsImages() != (config.isAllPagesAsImages())) return false;
+        if (isFirstPageAsCoverImage() != (config.isFirstPageAsCoverImage())) return false;
+        if (isSinglePagePDFAsImage() != (config.isSinglePagePDFAsImage())) return false;
+        if (isStripedImagesHandling() != (config.isStripedImagesHandling())) return false;
         if (getStripedImagesThreshold() != (config.getStripedImagesThreshold())) return false;
-        if (getGraphicsToImage() != (config.getGraphicsToImage())) return false;
+        if (isGraphicsToImage() != (config.isGraphicsToImage())) return false;
         if (getGraphicsToImageThreshold() != (config.getGraphicsToImageThreshold())) return false;
-        if (getJB2Images() != (config.getJB2Images())) return false;
+        if (isJB2Images() != (config.isJB2Images())) return false;
         if (getJB2ImagesThreshold() != (config.getJB2ImagesThreshold())) return false;
 
         return getMaxMainMemoryBytes() == config.getMaxMainMemoryBytes();
@@ -1067,14 +1068,14 @@ public class PDFParserConfig extends AbstractParserConfig implements Serializabl
         result = 31 * result + (isExtractActions() ? 1 : 0);
         result = 31 * result + Long.valueOf(getMaxMainMemoryBytes()).hashCode();
         // PUTHURR
-        result = 31 * result + (getAllPagesAsImages() ? 1 : 0);
-        result = 31 * result + (getFirstPageAsCoverImage() ? 1 : 0);
-        result = 31 * result + (getSinglePagePDFAsImage() ? 1 : 0);
-        result = 31 * result + (getStripedImagesHandling() ? 1 : 0);
+        result = 31 * result + (isAllPagesAsImages() ? 1 : 0);
+        result = 31 * result + (isFirstPageAsCoverImage() ? 1 : 0);
+        result = 31 * result + (isSinglePagePDFAsImage() ? 1 : 0);
+        result = 31 * result + (isStripedImagesHandling() ? 1 : 0);
         result = 31 * result + getStripedImagesThreshold();
-        result = 31 * result + (getGraphicsToImage() ? 1 : 0);
+        result = 31 * result + (isGraphicsToImage() ? 1 : 0);
         result = 31 * result + getGraphicsToImageThreshold();
-        result = 31 * result + (getJB2Images() ? 1 : 0);
+        result = 31 * result + (isJB2Images() ? 1 : 0);
         result = 31 * result + getJB2ImagesThreshold();
 
         return result;

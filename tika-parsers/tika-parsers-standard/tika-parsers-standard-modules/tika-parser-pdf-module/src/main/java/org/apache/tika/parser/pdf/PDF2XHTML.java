@@ -239,7 +239,7 @@ class PDF2XHTML extends AbstractPDF2XHTML {
 
         // Set a flag to convert the page to image or not.
         // Initialized with the config parameter allPagesAsImages.
-        boolean convertPageToImage = config.getAllPagesAsImages();
+        boolean convertPageToImage = config.isAllPagesAsImages();
 
         if (convertPageToImage) {
             processPageAsImage(page);
@@ -247,14 +247,14 @@ class PDF2XHTML extends AbstractPDF2XHTML {
             return;
         }
 
-        if (config.getFirstPageAsCoverImage() && pageIndex == 0) {
+        if (config.isFirstPageAsCoverImage() && pageIndex == 0) {
             processPageAsImage(page);
             metadata.add(TikaCoreProperties.TIKA_META_PREFIX + "PDFFirstPageAsCoverImage", String.valueOf(true));
             return;
         }
 
         // puthurr - striped-scanned images ( single image is split into multiple streams in the PDF)
-        if (page.hasContents() && config.getStripedImagesHandling()) {
+        if (page.hasContents() && config.isStripedImagesHandling()) {
             // Count how many Streams we have.
             int counter = 0;
             for (Iterator<PDStream> it = page.getContentStreams(); it.hasNext(); ) {
@@ -270,7 +270,7 @@ class PDF2XHTML extends AbstractPDF2XHTML {
 
         // puthurr - Our project is focused on Image, A single page PDF is forced into an image covering all our base
         // in terms of graphics, weird PDF construction etc.
-        if ((config.getSinglePagePDFAsImage() && getTotalPagesCount() == 1) || convertPageToImage) {
+        if ((config.isSinglePagePDFAsImage() && getTotalPagesCount() == 1) || convertPageToImage) {
             processPageAsImage(page);
             metadata.add(TikaCoreProperties.TIKA_META_PREFIX + "PDFSinglePagePDFAsImage", String.valueOf(true));
             return;
@@ -284,7 +284,7 @@ class PDF2XHTML extends AbstractPDF2XHTML {
 
         // PUTHURR - many images on a single page could indicate a stripe issue (similar to the number of content
         // streams)
-        if (config.getStripedImagesHandling()) {
+        if (config.isStripedImagesHandling()) {
             // Case: striped-scanned images oftenly have an Array of Streams instead of a single COSStream
             if (stats.getNumberOfImages() > config.getStripedImagesThreshold()) {
                 processPageAsImage(page);
@@ -296,7 +296,7 @@ class PDF2XHTML extends AbstractPDF2XHTML {
 
         // PUTHURR - when PDF page contains Graphics like curve, stroke etc. annotating any background image
         // they should be considered part of the extracted image.
-        if (config.getGraphicsToImage()) {
+        if (config.isGraphicsToImage()) {
             if (stats.getNumberOfGraphics() > config.getGraphicsToImageThreshold()) {
                 // puthurr - not taking any risk of losing graphical annotation, we treat the entire page as a single
                 // image
@@ -309,7 +309,7 @@ class PDF2XHTML extends AbstractPDF2XHTML {
 
         // PUTHURR - when PDF page contains Graphics like curve, stroke etc. annotating any background image
         // they should be considered part of the extracted image.
-        if (config.getJB2Images()) {
+        if (config.isJB2Images()) {
             if (stats.getNumberOfJB2Images() >= config.getJB2ImagesThreshold()) {
                 processPageAsImage(page);
                 metadata.add(TikaCoreProperties.TIKA_META_PREFIX + "JB2Images",
