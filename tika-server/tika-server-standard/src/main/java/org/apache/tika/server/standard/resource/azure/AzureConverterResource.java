@@ -43,6 +43,12 @@ import com.azure.storage.blob.BlobServiceClientBuilder;
 import com.azure.storage.blob.models.BlobHttpHeaders;
 import com.azure.storage.blob.models.BlobStorageException;
 import com.azure.storage.blob.models.ParallelTransferOptions;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageTree;
+import org.apache.pdfbox.rendering.ImageType;
+import org.apache.pdfbox.rendering.PDFRenderer;
+import org.apache.pdfbox.tools.imageio.ImageIOUtil;
 import org.apache.poi.hslf.usermodel.HSLFSlide;
 import org.apache.poi.hslf.usermodel.HSLFSlideShow;
 import org.apache.poi.xslf.usermodel.XMLSlideShow;
@@ -52,6 +58,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.config.BaseParserConfig;
+import org.apache.tika.parser.pdf.PDFParserConfig;
 import org.apache.tika.server.core.resource.TikaResource;
 import org.apache.tika.server.core.resource.TikaServerResource;
 
@@ -146,7 +153,7 @@ public class AzureConverterResource extends AbstractAzureResource implements Tik
 //            graphics.fill(new Rectangle2D.Float(
 //                    0, 0, pgsize.width, pgsize.height));
 
-            Color whiteTrans = new Color(1f,1f,1f,0f);
+            Color whiteTrans = new Color(1f, 1f, 1f, 0f);
             graphics.setColor(whiteTrans);
             graphics.fillRect(0, 0, pgsize.width, pgsize.height);
 
@@ -159,7 +166,7 @@ public class AzureConverterResource extends AbstractAzureResource implements Tik
 
             byte[] data = out.toByteArray();
 
-            String imageName = baseParserConfig.getResourceFilename("image",i + 1,99999,".png");
+            String imageName = baseParserConfig.getResourceFilename("image", i + 1, 99999, ".png");
 
             BlobClient blobClient = containerClient.getBlobClient(containerDirectory + "/" + imageName);
             blobClient.uploadWithResponse(new ByteArrayInputStream(data), data.length, parallelTransferOptions,
@@ -225,8 +232,6 @@ public class AzureConverterResource extends AbstractAzureResource implements Tik
 
         BufferedImage img = null;
 
-        System.out.println(pptSlides.size());
-
         /* AZURE */
 
         BlobHttpHeaders sysproperties = new BlobHttpHeaders();
@@ -247,7 +252,7 @@ public class AzureConverterResource extends AbstractAzureResource implements Tik
 //            graphics.setPaint(Color.white);
 //            graphics.fill(new Rectangle2D.Float(
 //                    0, 0, pgsize.width, pgsize.height));
-            Color whiteTrans = new Color(1f,1f,1f,0f);
+            Color whiteTrans = new Color(1f, 1f, 1f, 0f);
             graphics.setColor(whiteTrans);
             graphics.fillRect(0, 0, pgsize.width, pgsize.height);
 
@@ -260,7 +265,7 @@ public class AzureConverterResource extends AbstractAzureResource implements Tik
 
             byte[] data = out.toByteArray();
 
-            String imageName = baseParserConfig.getResourceFilename("image",i + 1,99999,".png");
+            String imageName = baseParserConfig.getResourceFilename("image", i + 1, 99999, ".png");
 
             BlobClient blobClient = containerClient.getBlobClient(containerDirectory + "/" + imageName);
             blobClient.uploadWithResponse(new ByteArrayInputStream(data), data.length, parallelTransferOptions,
@@ -271,4 +276,106 @@ public class AzureConverterResource extends AbstractAzureResource implements Tik
 
         return ("PPT successfully converted");
     }
+
+
+    @Path("/pdf")
+    @PUT
+    @Produces({"text/plain"})
+    public String convertPDF(
+            InputStream is,
+            @Context HttpHeaders httpHeaders,
+            @Context UriInfo info
+    ) throws Exception {
+
+        InputStream tikaInputStream = TikaResource.getInputStream(is, new Metadata(), httpHeaders);
+
+        TikaResource.logRequest(LOG, info.toString(), new Metadata());
+
+        // AZURE Support
+        // Get the headers
+        MultivaluedMap<String, String> headers = httpHeaders.getRequestHeaders();
+
+        // User-Defined Metadata we will add to the extracted item in Azure Blob.
+        // Those would be common to all embedded resources, useful to refer back to the original document.
+        Map<String, String> blobMetadata = new HashMap<>();
+        // Populate the blobMetadata from headers. Use the prefix x-ms-meta-name:string-value
+        for (String key : headers.keySet()) {
+            if (key.startsWith(AZURE_METADATA_PREFIX)) {
+                blobMetadata.put(key.replaceAll(AZURE_METADATA_PREFIX, ""), headers.getFirst(key));
+            }
+        }
+
+        String containerName = this.GetContainer(headers);
+        String containerDirectory = this.GetContainerDirectory(headers);
+
+        if (containerName == null) {
+            throw new WebApplicationException(Response.Status.BAD_REQUEST);
+        }
+
+        /* Create a new container client */
+        BlobContainerClient containerClient = null;
+
+        try {
+            containerClient = this.AcquireBlobContainerClient(containerName);
+        } catch (BlobStorageException ex) {
+            throw new WebApplicationException(Response.Status.BAD_REQUEST);
+        }
+
+        /* AZURE */
+
+        BlobHttpHeaders sysproperties = new BlobHttpHeaders();
+        sysproperties.setContentType("image/png");
+
+        Long blockSize = 10L * 1024L * 1024L; // 10 MB;
+        ParallelTransferOptions parallelTransferOptions = new ParallelTransferOptions()
+                .setBlockSizeLong(blockSize).setMaxConcurrency(5);
+
+
+        // PDF
+        PDDocument pdfDocument = null;
+
+        try {
+
+            pdfDocument = PDDocument.load(tikaInputStream);
+
+            PDPageTree pages = pdfDocument.getPages();
+            int totalPagesCount = pages.getCount();
+
+            PDFRenderer renderer = new PDFRenderer(pdfDocument);
+            PDFParserConfig config = new PDFParserConfig();
+
+            for (int pageIndex = 0; pageIndex < totalPagesCount; pageIndex++) {
+                PDPage page = pages.get(pageIndex);
+                int dpi = config.getOcrDPI();
+
+                BufferedImage image = renderer.renderImageWithDPI(pageIndex, dpi, ImageType.ARGB);
+//                BufferedImage image = renderer.renderImageWithDPI(pageIndex, dpi, ImageType.RGB);
+
+                String extension = config.getOcrImageFormatName();
+                int imageNumber = 99999;
+
+                String fileName = config.getImageFilename(pageIndex + 1, imageNumber, extension);
+
+                ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+                ImageIOUtil.writeImage(image, config.getOcrImageFormatName(), buffer, dpi,
+                        config.getOcrImageQuality());
+
+                byte[] data = buffer.toByteArray();
+
+                BlobClient blobClient = containerClient.getBlobClient(containerDirectory + "/" + fileName);
+                blobClient.uploadWithResponse(new ByteArrayInputStream(data), data.length, parallelTransferOptions,
+                        sysproperties, blobMetadata, null, null, null, null);
+
+                buffer.close();
+            }
+        } finally {
+            if (pdfDocument != null) {
+                pdfDocument.close();
+            }
+        }
+
+        return ("PDF successfully converted");
+    }
+
+
 }

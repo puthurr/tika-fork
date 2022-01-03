@@ -197,6 +197,10 @@ public class AzureUnpackerResource extends AbstractAzureResource implements Tika
             throw new WebApplicationException(Response.Status.NO_CONTENT);
         }
 
+        if ( text != null ) {
+            text.close();
+        }
+
         // Ask for GC whenever the JVM wants to execute.
         System.gc();
 
