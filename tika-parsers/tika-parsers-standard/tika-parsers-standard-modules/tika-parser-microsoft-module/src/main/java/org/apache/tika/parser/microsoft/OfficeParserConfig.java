@@ -18,9 +18,9 @@ package org.apache.tika.parser.microsoft;
 
 import java.io.Serializable;
 
-import org.apache.tika.parser.config.AbstractParserConfig;
+import org.apache.tika.parser.config.BaseParserConfig;
 
-public class OfficeParserConfig extends AbstractParserConfig implements Serializable {
+public class OfficeParserConfig extends BaseParserConfig implements Serializable {
 
     private boolean extractMacros = false;
 

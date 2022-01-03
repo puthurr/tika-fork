@@ -19,7 +19,7 @@ package org.apache.tika.parser.config;
 import java.io.Serializable;
 import java.util.Locale;
 
-public class AbstractParserConfig implements Serializable {
+public class BaseParserConfig implements Serializable {
 
     // Define how to name an embeddded resource
     public final String EMBEDDED_RESOURCE_NAMING_FORMAT = "%05d-%05d";

@@ -29,7 +29,7 @@ import org.apache.pdfbox.rendering.ImageType;
 import org.apache.pdfbox.text.PDFTextStripper;
 
 import org.apache.tika.exception.TikaException;
-import org.apache.tika.parser.config.AbstractParserConfig;
+import org.apache.tika.parser.config.BaseParserConfig;
 
 /**
  * Config for PDFParser.
@@ -41,7 +41,7 @@ import org.apache.tika.parser.config.AbstractParserConfig;
  * </ol>
  * <p/>
  */
-public class PDFParserConfig extends AbstractParserConfig implements Serializable {
+public class PDFParserConfig extends BaseParserConfig implements Serializable {
 
 
     private static final long serialVersionUID = 6492570218190936986L;
