@@ -332,7 +332,7 @@
     <juniversalchardet.version>1.0.3</juniversalchardet.version>
     <junrar.version>7.4.0</junrar.version>
     <libpst.version>0.9.3</libpst.version>
-    <log4j2.version>2.17.0</log4j2.version>
+    <log4j2.version>2.17.1</log4j2.version>
     <lombok.version>1.18.20</lombok.version>
     <lucene.version>8.11.1</lucene.version>
     <metadata.extractor.version>2.16.0</metadata.extractor.version>
@@ -354,7 +354,9 @@
     <pax.exam.version>4.11.0</pax.exam.version>
     <pdfbox.version>2.0.25</pdfbox.version>
     <!-- NOTE: sync tukaani version with commons-compress in tika-parsers -->
-    <poi.version>4.1.2</poi.version>
+<!--    <poi.version>4.1.2</poi.version>-->
+    <poi.version>5.1.0</poi.version>
+
     <quartz.version>2.3.2</quartz.version>
     <rome.version>1.16.0</rome.version>
     <scm.version>1.12.0</scm.version>

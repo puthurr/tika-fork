@@ -17,6 +17,7 @@
 
 package org.apache.tika.parser.microsoft.ooxml.xwpf;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Date;
@@ -57,7 +58,7 @@ import org.apache.tika.parser.microsoft.ooxml.XWPFListManager;
 /**
  * Experimental class that is based on POI's XSSFEventBasedExcelExtractor
  */
-public class XWPFEventBasedWordExtractor extends POIXMLTextExtractor {
+public class XWPFEventBasedWordExtractor implements POIXMLTextExtractor {
 
     private static final Logger LOG = LoggerFactory.getLogger(XWPFEventBasedWordExtractor.class);
 
@@ -66,7 +67,7 @@ public class XWPFEventBasedWordExtractor extends POIXMLTextExtractor {
 
     public XWPFEventBasedWordExtractor(OPCPackage container)
             throws XmlException, OpenXML4JException, IOException {
-        super((POIXMLDocument) null);
+//        super((POIXMLDocument) null);
         this.container = container;
         this.properties = new POIXMLProperties(container);
     }
@@ -85,6 +86,11 @@ public class XWPFEventBasedWordExtractor extends POIXMLTextExtractor {
 
     public POIXMLProperties.CustomProperties getCustomProperties() {
         return this.properties.getCustomProperties();
+    }
+
+    @Override
+    public POIXMLDocument getDocument() {
+        return null;
     }
 
     @Override
@@ -130,6 +136,21 @@ public class XWPFEventBasedWordExtractor extends POIXMLTextExtractor {
         }
 
         return sb.toString();
+    }
+
+    @Override
+    public void setCloseFilesystem(boolean doCloseFilesystem) {
+
+    }
+
+    @Override
+    public boolean isCloseFilesystem() {
+        return false;
+    }
+
+    @Override
+    public Closeable getFilesystem() {
+        return null;
     }
 
     private void handleDocumentPart(PackagePart documentPart, StringBuilder sb)

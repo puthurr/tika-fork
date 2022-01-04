@@ -349,10 +349,10 @@ public class PowerPointParserTest extends TikaTest {
         assertContains("tika", content);
         assertContains("MyTitle", content);
 
-        assertEquals("/image-00000-00000.png",
+        assertEquals("/image-00000-00001.png",
                 metadataList.get(1).get(TikaCoreProperties.EMBEDDED_RESOURCE_PATH));
 
-        assertEquals("/image-00000-00001.jpg",
+        assertEquals("/image-00000-00002.jpg",
                 metadataList.get(2).get(TikaCoreProperties.EMBEDDED_RESOURCE_PATH));
 
     }

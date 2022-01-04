@@ -16,6 +16,7 @@
  */
 package org.apache.tika.detect.microsoft;
 
+import static org.apache.poi.hssf.model.InternalWorkbook.WORKBOOK_DIR_ENTRY_NAMES;
 import static org.apache.tika.mime.MediaType.application;
 
 import java.io.IOException;
@@ -28,7 +29,6 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.poi.hssf.model.InternalWorkbook;
 import org.apache.poi.poifs.filesystem.DirectoryEntry;
 import org.apache.poi.poifs.filesystem.DirectoryNode;
 import org.apache.poi.poifs.filesystem.DocumentInputStream;
@@ -200,7 +200,7 @@ public class POIFSContainerDetector implements Detector {
         if (names == null || names.size() == 0) {
             return OLE;
         }
-        for (String workbookEntryName : InternalWorkbook.WORKBOOK_DIR_ENTRY_NAMES) {
+        for (String workbookEntryName : WORKBOOK_DIR_ENTRY_NAMES) {
             if (names.contains(workbookEntryName)) {
                 MediaType tmp = processCompObjFormatType(root);
                 if (tmp.equals(MS_GRAPH_CHART)) {
