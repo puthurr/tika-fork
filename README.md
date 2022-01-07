@@ -17,15 +17,11 @@ Once stabilized our plan is to propose our changes to the Apache Tika community.
 
 Main contact : [puthurr@gmail.com](mailto:puthurr@gmail.com)
 
-## Tika project
+This project contains all Tika projects modules.
 
-This project doesn't contain all Tika projects modules, only those necessary to run a tika server.
+# Tika Parsers
 
-The tika server includes PDFBOX [additional components](https://pdfbox.apache.org/2.0/dependencies.html#optional-components). See tika-server pom.xml for actual dependencies.
-
-## Added Features Set
-
-### Embedded Resources Naming consistency for Office and PDF
+## Embedded Resources Naming consistency for Office and PDF
 
 Extracting the embedded images of any document is a great feature. We implement a consistent images numbering format to identify quickly which page or slide a specific was referenced.
 
@@ -44,7 +40,7 @@ The final resource name for images would be
 - image-00001-00001.png => first image of the document located on page/slide 1
 - image-00004-00006.png => sixth image of the document located on page/slide 4
 
-### XHTML Tags
+## XHTML Tags
 
 - PDF Page tags contains the page id.
   ```<div class="page" id="2">```
@@ -54,7 +50,7 @@ The final resource name for images would be
 - PPT/PPTX slide-notes div renamed to slide-notes-content for consistency
   ```<div class="slide-notes-content">```
 
-### Embedded Images XHTML tags
+## Embedded Images XHTML tags
 
 Embedded representation in the XHTML for Office and PDF documents was diverse.
 Images are now represented with an image tag containing extra information like the size or type.
@@ -83,7 +79,7 @@ Some img attributes aren't HTML compliant we know. This above output is close to
 
 **Benefits**: we can scan big images, specific type of images, size in bytes or dimensions.
 
-#### PDF Parser new configuration(s)
+## PDF Parser new configuration(s)
 
 The new PDF parser configuration are all related to Image extraction thus they will take effects on calling the unpack endpoint.
 It means they will also requires the **extractInlineImages** option to be set to **true** as well.
@@ -94,7 +90,7 @@ The below options goal is to validate if a PDF page is better off rendered as an
 2. Capture graphical elements.
 3. Reduce the effect of the various scanning techniques.
 
-##### New options
+#### New options
 
 - **allPagesAsImages** : this instructs to convert any PDF page as image.
 - **singlePagePDFAsImage** : this instructs to convert a single page PDF to an image.
@@ -113,29 +109,39 @@ An image originating from the above processing options i.e. singlePagePDFAsImage
 
 ```image-<page/slide number>-99999.png```
 
-##### Changing the image resulting format
+#### Changing the image resulting format
 
 The extension of the resulting is taken from OcrImageFormatName which default to png. To change the extension
 ```--header "X-Tika-PDFOcrImageFormatName:jpg"```
 
-#### Office Parser new configuration(s)
+### Office Parser new configuration(s)
 
 - **IncludeSlideShowEmbeddedResources** : for PPT Office documents, by default, images are extracted at the slideshow level. Setting this flag to false extracts the images at the slide level.
 
-#### Azure Blob Storage support for unpacking (tika-server)
+## Tika Server 
+
+### Additional libraries
+The tika server includes PDFBOX [additional components](https://pdfbox.apache.org/2.0/dependencies.html#optional-components). See tika-server pom.xml for actual dependencies.
+
+#### Azure Blob Storage support in tika-server unpack 
 The unpack feature produces an archive response which you can expand and process.
 For documents containing a lot of high-res images, the **unpack** will hit some limitations like OOM.
 To avoid hitting those potential limitations, support cloud storage and big-size documents, I implemented an azure-unpack resource to write any embedded resource directly into an Azure Storage container and directory.
 
 **Benefits** : no archive client expansion, network bandwidth reduced, handles documents with a lot of high-res images and more.
 
+#### Azure Blob Storage support in tika-server new conversion endpoints 
+Our version created a **converter** endpoint to convert 
+- all PDF as images storing them in Azure blob storage
+- all PPT/PPTX slides as images storing them in Azure blob storage
+
 See [tika-server](/tika-server) for more details on how to use that feature.
 
 TIKA: Repository Structure
 ---------------------------
 
-- branch_1x => latest GA release 1.27 
-- main => 2.x code based. 
+- branch_1x => latest GA release 1.27 - This branch is not holding the mentioned enhancements. 
+- main => 2.x code based. Has all the mentioned enhancements.
 
 Apache Tika  <https://tika.apache.org/>
 =======================================
