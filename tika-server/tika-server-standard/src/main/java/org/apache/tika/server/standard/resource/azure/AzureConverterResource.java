@@ -19,7 +19,11 @@ package org.apache.tika.server.standard.resource.azure;
 
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.DisplayMode;
 import java.awt.Graphics2D;
+import java.awt.GraphicsConfiguration;
+import java.awt.GraphicsDevice;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -67,24 +71,25 @@ public class AzureConverterResource extends AbstractAzureResource implements Tik
 
     private static final Logger LOG = LoggerFactory.getLogger(AzureConverterResource.class);
 
+    private static final String OutputFormat = "png";
+    private static final String OutputContentType = "image/" + OutputFormat;
+
+    private static final int DPI = 300;
+    private static final float DPI_SCALE = DPI / 72f;
+
     private BaseParserConfig baseParserConfig = new BaseParserConfig();
 
     static {
         if (connectStr != null) {
-            blobServiceClient = new BlobServiceClientBuilder()
-                    .connectionString(connectStr)
-                    .buildClient();
+            blobServiceClient = new BlobServiceClientBuilder().connectionString(connectStr).buildClient();
         }
     }
 
     @Path("/pptx")
     @PUT
     @Produces({"text/plain"})
-    public String convertPPTX(
-            InputStream is,
-            @Context HttpHeaders httpHeaders,
-            @Context UriInfo info
-    ) throws Exception {
+    public String convertPPTX(InputStream is, @Context HttpHeaders httpHeaders, @Context UriInfo info)
+            throws Exception {
 
         InputStream tikaInputStream = TikaResource.getInputStream(is, new Metadata(), httpHeaders);
 
@@ -121,8 +126,7 @@ public class AzureConverterResource extends AbstractAzureResource implements Tik
         }
 
         // Open SlideShow
-        XMLSlideShow ppt
-                = new XMLSlideShow(tikaInputStream);
+        XMLSlideShow ppt = new XMLSlideShow(tikaInputStream);
 
         // get the dimension and size of the slide
         Dimension pgsize = ppt.getPageSize();
@@ -130,43 +134,38 @@ public class AzureConverterResource extends AbstractAzureResource implements Tik
 
         BufferedImage img = null;
 
-        System.out.println(pptSlides.size());
-
         /* AZURE */
 
         BlobHttpHeaders sysproperties = new BlobHttpHeaders();
-        sysproperties.setContentType("image/png");
+        sysproperties.setContentType(OutputContentType);
 
         Long blockSize = 10L * 1024L * 1024L; // 10 MB;
-        ParallelTransferOptions parallelTransferOptions = new ParallelTransferOptions()
-                .setBlockSizeLong(blockSize).setMaxConcurrency(5);
+        ParallelTransferOptions parallelTransferOptions =
+                new ParallelTransferOptions().setBlockSizeLong(blockSize).setMaxConcurrency(5);
 
         // Loop through the slides
         for (int i = 0; i < pptSlides.size(); i++) {
-            img = new BufferedImage(
-                    pgsize.width, pgsize.height,
-                    BufferedImage.TYPE_INT_RGB);
+
+            int widthPx = (int) Math.max(Math.floor(pgsize.width * DPI_SCALE), 1);
+            int heightPx = (int) Math.max(Math.floor(pgsize.height * DPI_SCALE), 1);
+
+            img = new BufferedImage(widthPx, heightPx, BufferedImage.TYPE_INT_RGB);
             Graphics2D graphics = img.createGraphics();
-
-            // clear area
-//            graphics.setPaint(Color.white);
-//            graphics.fill(new Rectangle2D.Float(
-//                    0, 0, pgsize.width, pgsize.height));
-
-            Color whiteTrans = new Color(1f, 1f, 1f, 0f);
-            graphics.setColor(whiteTrans);
-            graphics.fillRect(0, 0, pgsize.width, pgsize.height);
+            graphics.setBackground(Color.WHITE);
+            graphics.clearRect(0, 0, img.getWidth(), img.getHeight());
+            graphics.scale(DPI_SCALE, DPI_SCALE);
+            graphics.addRenderingHints(createDefaultRenderingHints(graphics));
 
             // draw the images
             pptSlides.get(i).draw(graphics);
 
             ByteArrayOutputStream out = new ByteArrayOutputStream();
-            javax.imageio.ImageIO.write(img, "png", out);
-            ppt.write(out);
+            ImageIOUtil.writeImage(img, OutputFormat, out, DPI);
 
             byte[] data = out.toByteArray();
 
-            String imageName = baseParserConfig.getResourceFilename("image", i + 1, 99999, ".png");
+            String imageName = baseParserConfig.getResourceFilename("image",
+                    i + 1, 99999, "." + OutputFormat);
 
             BlobClient blobClient = containerClient.getBlobClient(containerDirectory + "/" + imageName);
             blobClient.uploadWithResponse(new ByteArrayInputStream(data), data.length, parallelTransferOptions,
@@ -181,11 +180,8 @@ public class AzureConverterResource extends AbstractAzureResource implements Tik
     @Path("/ppt")
     @PUT
     @Produces({"text/plain"})
-    public String convertPPT(
-            InputStream is,
-            @Context HttpHeaders httpHeaders,
-            @Context UriInfo info
-    ) throws Exception {
+    public String convertPPT(InputStream is, @Context HttpHeaders httpHeaders, @Context UriInfo info)
+            throws Exception {
 
         InputStream tikaInputStream = TikaResource.getInputStream(is, new Metadata(), httpHeaders);
 
@@ -235,37 +231,35 @@ public class AzureConverterResource extends AbstractAzureResource implements Tik
         /* AZURE */
 
         BlobHttpHeaders sysproperties = new BlobHttpHeaders();
-        sysproperties.setContentType("image/png");
+        sysproperties.setContentType(OutputContentType);
 
         Long blockSize = 10L * 1024L * 1024L; // 10 MB;
-        ParallelTransferOptions parallelTransferOptions = new ParallelTransferOptions()
-                .setBlockSizeLong(blockSize).setMaxConcurrency(5);
+        ParallelTransferOptions parallelTransferOptions =
+                new ParallelTransferOptions().setBlockSizeLong(blockSize).setMaxConcurrency(5);
 
         // Loop through the slides
         for (int i = 0; i < pptSlides.size(); i++) {
-            img = new BufferedImage(
-                    pgsize.width, pgsize.height,
-                    BufferedImage.TYPE_INT_RGB);
-            Graphics2D graphics = img.createGraphics();
 
-            // clear area
-//            graphics.setPaint(Color.white);
-//            graphics.fill(new Rectangle2D.Float(
-//                    0, 0, pgsize.width, pgsize.height));
-            Color whiteTrans = new Color(1f, 1f, 1f, 0f);
-            graphics.setColor(whiteTrans);
-            graphics.fillRect(0, 0, pgsize.width, pgsize.height);
+            int widthPx = (int) Math.max(Math.floor(pgsize.width * DPI_SCALE), 1);
+            int heightPx = (int) Math.max(Math.floor(pgsize.height * DPI_SCALE), 1);
+
+            img = new BufferedImage(widthPx, heightPx, BufferedImage.TYPE_INT_RGB);
+            Graphics2D graphics = img.createGraphics();
+            graphics.setBackground(Color.WHITE);
+            graphics.clearRect(0, 0, img.getWidth(), img.getHeight());
+            graphics.scale(DPI_SCALE, DPI_SCALE);
+            graphics.addRenderingHints(createDefaultRenderingHints(graphics));
 
             // draw the images
             pptSlides.get(i).draw(graphics);
 
             ByteArrayOutputStream out = new ByteArrayOutputStream();
-            javax.imageio.ImageIO.write(img, "png", out);
-            ppt.write(out);
+            ImageIOUtil.writeImage(img, OutputFormat, out, DPI);
 
             byte[] data = out.toByteArray();
 
-            String imageName = baseParserConfig.getResourceFilename("image", i + 1, 99999, ".png");
+            String imageName = baseParserConfig.getResourceFilename("image",
+                    i + 1, 99999, "." + OutputFormat);
 
             BlobClient blobClient = containerClient.getBlobClient(containerDirectory + "/" + imageName);
             blobClient.uploadWithResponse(new ByteArrayInputStream(data), data.length, parallelTransferOptions,
@@ -281,11 +275,8 @@ public class AzureConverterResource extends AbstractAzureResource implements Tik
     @Path("/pdf")
     @PUT
     @Produces({"text/plain"})
-    public String convertPDF(
-            InputStream is,
-            @Context HttpHeaders httpHeaders,
-            @Context UriInfo info
-    ) throws Exception {
+    public String convertPDF(InputStream is, @Context HttpHeaders httpHeaders, @Context UriInfo info)
+            throws Exception {
 
         InputStream tikaInputStream = TikaResource.getInputStream(is, new Metadata(), httpHeaders);
 
@@ -324,11 +315,11 @@ public class AzureConverterResource extends AbstractAzureResource implements Tik
         /* AZURE */
 
         BlobHttpHeaders sysproperties = new BlobHttpHeaders();
-        sysproperties.setContentType("image/png");
+        sysproperties.setContentType(OutputContentType);
 
         Long blockSize = 10L * 1024L * 1024L; // 10 MB;
-        ParallelTransferOptions parallelTransferOptions = new ParallelTransferOptions()
-                .setBlockSizeLong(blockSize).setMaxConcurrency(5);
+        ParallelTransferOptions parallelTransferOptions =
+                new ParallelTransferOptions().setBlockSizeLong(blockSize).setMaxConcurrency(5);
 
 
         // PDF
@@ -348,25 +339,23 @@ public class AzureConverterResource extends AbstractAzureResource implements Tik
                 PDPage page = pages.get(pageIndex);
                 int dpi = config.getOcrDPI();
 
-                BufferedImage image = renderer.renderImageWithDPI(pageIndex, dpi, ImageType.ARGB);
-//                BufferedImage image = renderer.renderImageWithDPI(pageIndex, dpi, ImageType.RGB);
+                BufferedImage image = renderer.renderImageWithDPI(pageIndex, dpi, ImageType.RGB);
 
                 String extension = config.getOcrImageFormatName();
                 int imageNumber = 99999;
 
                 String fileName = config.getImageFilename(pageIndex + 1, imageNumber, extension);
 
-                ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-                ImageIOUtil.writeImage(image, config.getOcrImageFormatName(), buffer, dpi,
-                        config.getOcrImageQuality());
+                ByteArrayOutputStream out = new ByteArrayOutputStream();
+                ImageIOUtil.writeImage(image, config.getOcrImageFormatName(), out, dpi);
 
-                byte[] data = buffer.toByteArray();
+                byte[] data = out.toByteArray();
 
                 BlobClient blobClient = containerClient.getBlobClient(containerDirectory + "/" + fileName);
                 blobClient.uploadWithResponse(new ByteArrayInputStream(data), data.length, parallelTransferOptions,
                         sysproperties, blobMetadata, null, null, null, null);
 
-                buffer.close();
+                out.close();
             }
         } finally {
             if (pdfDocument != null) {
@@ -377,5 +366,34 @@ public class AzureConverterResource extends AbstractAzureResource implements Tik
         return ("PDF successfully converted");
     }
 
+    // Utilities methods
+
+    private boolean isBitonal(Graphics2D graphics) {
+        GraphicsConfiguration deviceConfiguration = graphics.getDeviceConfiguration();
+        if (deviceConfiguration == null) {
+            return false;
+        }
+        GraphicsDevice device = deviceConfiguration.getDevice();
+        if (device == null) {
+            return false;
+        }
+        DisplayMode displayMode = device.getDisplayMode();
+        if (displayMode == null) {
+            return false;
+        }
+        return displayMode.getBitDepth() == 1;
+    }
+
+    private RenderingHints createDefaultRenderingHints(Graphics2D graphics) {
+        RenderingHints r = new RenderingHints(null);
+        r.put(RenderingHints.KEY_INTERPOLATION, isBitonal(graphics) ?
+                RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR :
+                RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+        r.put(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        r.put(RenderingHints.KEY_ANTIALIASING, isBitonal(graphics) ?
+                RenderingHints.VALUE_ANTIALIAS_OFF :
+                RenderingHints.VALUE_ANTIALIAS_ON);
+        return r;
+    }
 
 }
