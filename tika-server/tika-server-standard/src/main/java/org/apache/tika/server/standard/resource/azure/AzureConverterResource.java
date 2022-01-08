@@ -66,7 +66,7 @@ import org.apache.tika.parser.pdf.PDFParserConfig;
 import org.apache.tika.server.core.resource.TikaResource;
 import org.apache.tika.server.core.resource.TikaServerResource;
 
-@Path("/azure/converter")
+@Path("/azure/convert")
 public class AzureConverterResource extends AbstractAzureResource implements TikaServerResource {
 
     private static final Logger LOG = LoggerFactory.getLogger(AzureConverterResource.class);
