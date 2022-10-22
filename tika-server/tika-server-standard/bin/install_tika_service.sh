@@ -29,7 +29,7 @@ print_usage() {
   echo ""
   echo "Usage: install_tika_service.sh <path_to_tika_distribution_archive> [OPTIONS]"
   echo ""
-  echo "  The first argument to the script must be a path to a Tika distribution archive, such as tika-server-2.0.0-SNAPSHOT.bin.tgz"
+  echo "  The first argument to the script must be a path to a Tika distribution archive, such as tika-server-2.2.2-SNAPSHOT.bin.tgz"
   echo "    (only .tgz or .zip are supported formats for the archive)"
   echo ""
   echo "  Supported OPTIONS include:"
@@ -90,7 +90,7 @@ if [[ ! $distro ]] ; then
 fi
 
 if [ -z "$1" ]; then
-  print_usage "Must specify the path to the Tika installation archive, such as tika-server-2.0.0-SNAPSHOT-bin.tgz"
+  print_usage "Must specify the path to the Tika installation archive, such as tika-server-2.2.2-SNAPSHOT-bin.tgz"
   exit 1
 fi
 

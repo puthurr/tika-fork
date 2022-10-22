@@ -14,20 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-<<<<<<<< HEAD:tika-core/src/main/java/org/apache/tika/pipes/async/AsyncRuntimeException.java
-package org.apache.tika.pipes.async;
+package org.apache.tika.pipes;
 
 /**
  * Fatal exception that means that something went seriously wrong.
  */
-public class AsyncRuntimeException extends RuntimeException {
-========
-package org.apache.tika.transcribe;
+public class PipesException extends Exception {
 
-import org.junit.Before;
->>>>>>>> 17f2d104d (fix for TIKA-94 contributed by phantuanminh: Rename package (Fix typo). Add simple test and test files):tika-transcribe/src/test/java/org/apache/tika/transcribe/AmazonTranscribeTest.java
-
-    public AsyncRuntimeException(Throwable t) {
+    public PipesException(Throwable t) {
         super(t);
     }
 }

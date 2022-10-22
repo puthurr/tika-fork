@@ -16,88 +16,139 @@
  */
 package org.apache.tika;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import org.apache.tika.utils.RereadableInputStream;
 
 public class TestRereadableInputStream {
 
-    private final int TEST_SIZE = 3;
+    private final int DEFAULT_TEST_SIZE = 3;
 
-    private final int MEMORY_THRESHOLD = 1;
+    private final int MEMORY_THRESHOLD = 10;
 
     private final int NUM_PASSES = 4;
 
-    @Test
-    public void test() throws IOException {
+    // This size of data keeps us in memory
+    private final int TEST_SIZE_MEMORY = 7;
 
-        InputStream is = createTestInputStream();
-        try (RereadableInputStream ris = new RereadableInputStream(is, MEMORY_THRESHOLD, true,
-                true)) {
+    // This size of data exceeds memory threshold and gets us in a file
+    private final int TEST_SIZE_FILE = 15;
+
+    // This size of data exactly equals memory threshold
+    private final int TEST_SIZE_MAX = MEMORY_THRESHOLD;
+
+    @TempDir
+    private Path tempDir;
+
+    @Test
+    public void testInMemory() throws IOException {
+        readEntireStream((TEST_SIZE_MEMORY));
+    }
+
+//    @Test
+//    public void testInFile() throws IOException {
+//        readData(TEST_SIZE_FILE);
+//    }
+//
+//    @Test
+//    public void testMemoryThreshold() throws IOException {
+//        readData(TEST_SIZE_MAX);
+//    }
+//
+//    @Test
+//    public void testInMemory2() throws IOException {
+//        readData2((TEST_SIZE_MEMORY));
+//    }
+//
+//    @Test
+//    public void testInFile2() throws IOException {
+//        readData2(TEST_SIZE_FILE);
+//    }
+
+    @Test
+    public void testMemoryThreshold2() throws IOException {
+        readPartialStream(TEST_SIZE_MAX);
+    }
+
+    /**
+     * Read entire stream of various sizes
+     */
+    private void readEntireStream(int testSize) throws IOException {
+        InputStream is = createTestInputStream(testSize);
+        try (RereadableInputStream ris = new RereadableInputStream(is, MEMORY_THRESHOLD, true)) {
             for (int pass = 0; pass < NUM_PASSES; pass++) {
-                for (int byteNum = 0; byteNum < TEST_SIZE; byteNum++) {
+                for (int byteNum = 0; byteNum < testSize; byteNum++) {
                     int byteRead = ris.read();
-                    assertEquals("Pass = " + pass + ", byte num should be " + byteNum + " but is " +
-                            byteRead + ".", byteNum, byteRead);
+                    assertEquals(byteNum, byteRead,
+                            "Pass = " + pass + ", byte num should be " + byteNum + " but is " +
+                                    byteRead + ".");
                 }
+                int eof = ris.read();
+                assertEquals(-1, eof,
+                        "Pass = " + pass + ", byte num should be " + -1 + " but is " + eof + ".");
                 ris.rewind();
             }
         }
     }
 
     /**
-     * Test that the constructor's readToEndOfStreamOnFirstRewind parameter
-     * correctly determines the behavior.
-     *
-     * @throws IOException
+     * Read increasingly more of the stream, but not all, with each pass before rewinding to
+     * make sure we pick up at the correct point
      */
-    @Test
-    public void testRewind() throws IOException {
-        doTestRewind(true);
-        doTestRewind(false);
-    }
+    private void readPartialStream(int testSize) throws IOException {
+        InputStream is = createTestInputStream(20);
+        try (RereadableInputStream ris = new RereadableInputStream(is, MEMORY_THRESHOLD, true)) {
 
-    private void doTestRewind(boolean readToEndOnRewind) throws IOException {
-
-        RereadableInputStream ris = null;
-
-        try {
-            InputStream s1 = createTestInputStream();
-            ris = new RereadableInputStream(s1, 5, readToEndOnRewind, true);
-            ris.read();
-            assertEquals(1, ris.getSize());
-            ris.rewind();
-            boolean moreBytesWereRead = (ris.getSize() > 1);
-            assertEquals(readToEndOnRewind, moreBytesWereRead);
-        } finally {
-            if (ris != null) {
-                ris.close();
+            int iterations = testSize;
+            for (int pass = 0; pass < NUM_PASSES; pass++) {
+                for (int byteNum = 0; byteNum < iterations; byteNum++) {
+                    int byteRead = ris.read();
+                    assertEquals(byteNum, byteRead,
+                            "Pass = " + pass + ", byte num should be " + byteNum + " but is " + byteRead + ".");
+                }
+                ris.rewind();
+                iterations++;
             }
         }
-
     }
 
-    private TestInputStream createTestInputStream() throws IOException {
-        return new TestInputStream(new BufferedInputStream(new FileInputStream(createTestFile())));
-    }
 
-    private File createTestFile() throws IOException {
-        File testfile = File.createTempFile("TIKA_ris_test", ".tmp");
-        testfile.deleteOnExit();
-        FileOutputStream fos = new FileOutputStream(testfile);
-        for (int i = 0; i < TEST_SIZE; i++) {
-            fos.write(i);
+    @Test
+    public void testRewind() throws IOException {
+        InputStream is = createTestInputStream(DEFAULT_TEST_SIZE);
+        try (RereadableInputStream ris = new RereadableInputStream(is, MEMORY_THRESHOLD, true)) {
+            ris.rewind();  // rewind before we've done anything
+            for (int byteNum = 0; byteNum < 1; byteNum++) {
+                int byteRead = ris.read();
+                assertEquals(byteNum, byteRead, "Byte num should be " + byteNum + " but is " + byteRead + ".");
+            }
         }
-        fos.close();
+    }
+
+
+    private TestInputStream createTestInputStream(int testSize) throws IOException {
+        return new TestInputStream(
+                new BufferedInputStream(Files.newInputStream(createTestFile(testSize))));
+    }
+
+    private Path createTestFile(int testSize) throws IOException {
+        Path testfile = Files.createTempFile(tempDir, "TIKA_ris_test", ".tmp");
+        try (OutputStream fos = Files.newOutputStream(testfile)) {
+            for (int i = 0; i < testSize; i++) {
+                fos.write(i);
+            }
+        }
         return testfile;
     }
 
@@ -109,14 +160,24 @@ public class TestRereadableInputStream {
 
     private void doACloseBehaviorTest(boolean wantToClose) throws IOException {
 
-        TestInputStream tis = createTestInputStream();
-        RereadableInputStream ris = new RereadableInputStream(tis, 5, true, wantToClose);
+        TestInputStream tis = createTestInputStream(DEFAULT_TEST_SIZE);
+        RereadableInputStream ris = new RereadableInputStream(tis, MEMORY_THRESHOLD, wantToClose);
         ris.close();
         assertEquals(wantToClose, tis.isClosed());
 
         if (!tis.isClosed()) {
             tis.close();
         }
+    }
+
+    @Test
+    public void doReadAfterCloseTest() throws IOException {
+        TestInputStream tis = createTestInputStream(DEFAULT_TEST_SIZE);
+        RereadableInputStream ris = new RereadableInputStream(tis, DEFAULT_TEST_SIZE);
+        ris.close();
+        assertThrows(IOException.class, () -> {
+            ris.read();
+        });
     }
 
 
@@ -140,5 +201,4 @@ public class TestRereadableInputStream {
             return closed;
         }
     }
-
 }

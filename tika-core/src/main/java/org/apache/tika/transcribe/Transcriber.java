@@ -19,7 +19,6 @@ package org.apache.tika.transcribe;
 
 import java.io.IOException;
 
-
 import org.apache.tika.exception.TikaException;
 
 /**

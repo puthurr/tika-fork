@@ -279,7 +279,7 @@
     <rat.version>0.13</rat.version>
 
     <!-- dependency versions -->
-    <aws.s3.version>1.12.129</aws.s3.version>
+    <aws.s3.version>1.12.301</aws.s3.version>
     <aws.transcribe.version>1.12.129</aws.transcribe.version>
     <asm.version>9.2</asm.version>
     <boilerpipe.version>1.1.0</boilerpipe.version>
@@ -304,17 +304,21 @@
     <!-- fakeload versions &gt; 0.4.0 require java > 8 -->
     <fakeload.version>0.4.0</fakeload.version>
     <geoapi.version>3.0.1</geoapi.version>
-    <google.cloud.version>2.2.2</google.cloud.version>
+    <google.cloud.version>2.11.3</google.cloud.version>
     <gson.version>2.8.9</gson.version>
-    <guava.version>31.0.1-jre</guava.version>
+    <guava.version>31.1-jre</guava.version>
     <h2.version>2.0.202</h2.version>
     <httpcomponents.version>4.5.13</httpcomponents.version>
     <httpcore.version>4.4.15</httpcore.version>
+
+    <!-- versions greater than 62.2 are not compatible with icu4j handler in lucene 8.11.1 -->
+    <icu4j.version>62.2</icu4j.version>
+
     <imageio.version>1.4.0</imageio.version>
     <jackcess.version>4.0.1</jackcess.version>
     <jackcess.encrypt.version>4.0.1</jackcess.encrypt.version>
     <jackrabbit.version>2.21.9</jackrabbit.version>
-    <jackson.version>2.13.1</jackson.version>
+    <jackson.version>2.13.4</jackson.version>
     <javax.annotation.version>1.3.2</javax.annotation.version>
     <javax.jcr.version>2.0</javax.jcr.version>
     <javax.rest.version>2.1.1</javax.rest.version>
@@ -322,7 +326,7 @@
     <jbig2.version>3.0.3</jbig2.version>
     <jdom2.version>2.0.6.1</jdom2.version>
     <jempbox.version>1.8.16</jempbox.version>
-    <jetty.version>9.4.44.v20210927</jetty.version>
+    <jetty.version>9.4.48.v20220622</jetty.version>
     <jhighlight.version>1.0.3</jhighlight.version>
     <jna.version>5.10.0</jna.version>
     <joda.time.version>2.10.10</joda.time.version>
@@ -330,7 +334,8 @@
     <junit4.version>4.13.2</junit4.version>
     <junit5.version>5.8.2</junit5.version>
     <juniversalchardet.version>1.0.3</juniversalchardet.version>
-    <junrar.version>7.4.0</junrar.version>
+<!--    <junrar.version>7.4.0</junrar.version>-->
+    <junrar.version>7.5.3</junrar.version>
     <libpst.version>0.9.3</libpst.version>
     <log4j2.version>2.17.1</log4j2.version>
     <lombok.version>1.18.20</lombok.version>
@@ -354,8 +359,8 @@
     <pax.exam.version>4.11.0</pax.exam.version>
     <pdfbox.version>2.0.25</pdfbox.version>
     <!-- NOTE: sync tukaani version with commons-compress in tika-parsers -->
-<!--    <poi.version>4.1.2</poi.version>-->
-    <poi.version>5.1.0</poi.version>
+<!--    <poi.version>5.1.0</poi.version>-->
+    <poi.version>5.2.2</poi.version>
 
     <quartz.version>2.3.2</quartz.version>
     <rome.version>1.16.0</rome.version>
@@ -374,9 +379,10 @@
     <uima.version>3.2.0</uima.version>
     <uimafit.version>3.2.0</uimafit.version>
     <vorbis.version>0.8</vorbis.version>
-    <xerces.version>2.12.1</xerces.version>
+    <xerces.version>2.12.2</xerces.version>
     <xmpcore.version>6.1.11</xmpcore.version>
     <zstd.version>1.5.0-5</zstd.version>
+    <netty.version>4.1.82.Final</netty.version>
   </properties>
 
   <dependencyManagement>
@@ -390,6 +396,11 @@
         <groupId>c3p0</groupId>
         <artifactId>c3p0</artifactId>
         <version>0.9.1.2</version>
+      </dependency>
+      <dependency>
+        <groupId>com.beust</groupId>
+        <artifactId>jcommander</artifactId>
+        <version>1.82</version>
       </dependency>
       <dependency>
         <groupId>com.fasterxml.jackson.core</groupId>
@@ -420,6 +431,11 @@
         <groupId>com.google.guava</groupId>
         <artifactId>guava</artifactId>
         <version>${guava.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.google.protobuf</groupId>
+        <artifactId>protobuf-java</artifactId>
+        <version>3.21.6</version>
       </dependency>
       <dependency>
         <groupId>org.apache.commons</groupId>
@@ -472,6 +488,11 @@
         <version>${lucene.version}</version>
       </dependency>
       <dependency>
+        <groupId>org.apache.opennlp</groupId>
+        <artifactId>opennlp-tools</artifactId>
+        <version>${opennlp.version}</version>
+      </dependency>
+      <dependency>
         <groupId>commons-codec</groupId>
         <artifactId>commons-codec</artifactId>
         <version>${commons.codec.version}</version>
@@ -480,6 +501,21 @@
         <groupId>commons-logging</groupId>
         <artifactId>commons-logging</artifactId>
         <version>${commons.logging.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.netty</groupId>
+        <artifactId>netty-common</artifactId>
+        <version>${netty.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.netty</groupId>
+        <artifactId>netty-handler</artifactId>
+        <version>${netty.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.netty</groupId>
+        <artifactId>netty-transport-native-unix-common</artifactId>
+        <version>${netty.version}</version>
       </dependency>
       <dependency>
         <groupId>org.eclipse.jetty</groupId>
@@ -591,6 +627,11 @@
         <artifactId>junit</artifactId>
         <version>${junit4.version}</version>
       </dependency>
+      <dependency>
+        <groupId>xerces</groupId>
+        <artifactId>xercesImpl</artifactId>
+        <version>${xerces.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -632,16 +673,73 @@
           <generateBackupPoms>false</generateBackupPoms>
         </configuration>
       </plugin>
-      <!-- to run just this: mvn ossindex:audit -Dossindex.fail=(true|false) -->
+
+      <!-- to run just this: mvn ossindex:audit -Dossindex.fail=(true|false)
+          Although, -Dossindex.fail doesn't seem to work for us -->
       <plugin>
         <groupId>org.sonatype.ossindex.maven</groupId>
         <artifactId>ossindex-maven-plugin</artifactId>
         <version>3.1.0</version>
         <configuration>
-          <fail>false</fail>
           <excludeCoordinates>
-<!--            <coordinate>            </coordinate> -->
+            <!-- the link from ossindex "divide by zero" points to fixes that were made in 2.18.0 -->
+            <exclude>
+              <groupId>com.drewnoakes</groupId>
+              <artifactId>metadata-extractor</artifactId>
+              <version>2.16.0</version>
+            </exclude>
+            <exclude>
+              <!-- sonatype https://github.com/google/guava/issues/4011 -->
+              <groupId>com.google.guava</groupId>
+              <artifactId>guava</artifactId>
+              <version>31.1-jre</version>
+            </exclude>
+            <exclude>
+              <!-- CVE-2018-18928 does affect the java library not just the c/c++ library,
+              upon further research -->
+              <groupId>com.ibm.icu</groupId>
+              <artifactId>icu4j</artifactId>
+              <version>${icu4j.version}</version>
+            </exclude>
+            <exclude>
+              <groupId>io.netty</groupId>
+              <artifactId>netty-handler</artifactId>
+              <version>${netty.version}</version>
+            </exclude>
+            <exclude>
+              <!-- the most recent cve in sonatype for this artifact is 2.11.0,
+                  not at all the version we're using...smh-->
+              <groupId>xerces</groupId>
+              <artifactId>xercesImpl</artifactId>
+              <version>${xerces.version}</version>
+            </exclude>
+            <!-- these are used by the nlp-module -->
+            <exclude>
+              <groupId>org.apache.lucene</groupId>
+              <artifactId>lucene-queryparser</artifactId>
+              <version>4.0.0</version>
+            </exclude>
+            <exclude>
+              <groupId>log4j</groupId>
+              <artifactId>log4j</artifactId>
+              <version>1.2.17</version>
+            </exclude>
+            <!-- this one is used in tika-example -->
+            <exclude>
+              <!-- sonatype: https://github.com/apache/commons-dbcp/commit/a4c5af0da1de3a7f50c72fc7edaa1f653ca276dd -->
+              <groupId>commons-dbcp</groupId>
+              <artifactId>commons-dbcp</artifactId>
+              <version>1.4</version>
+            </exclude>
+            <!-- used only in tests and in tika-eval, and this problem requires the use of the console.
+                 https://github.com/h2database/h2database/issues/1294 -->
+            <exclude>
+              <groupId>com.h2database</groupId>
+              <artifactId>h2</artifactId>
+              <version>2.1.214</version>
+            </exclude>
           </excludeCoordinates>
+          <fail>false</fail>
         </configuration>
         <executions>
           <execution>
@@ -653,6 +751,7 @@
           </execution>
         </executions>
       </plugin>
+
       <!-- example of how to ignore coordinates
                 <configuration>
                     <excludeCoordinates>
