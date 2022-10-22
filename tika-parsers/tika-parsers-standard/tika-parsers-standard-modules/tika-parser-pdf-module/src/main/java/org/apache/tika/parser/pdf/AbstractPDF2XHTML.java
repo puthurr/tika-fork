@@ -830,8 +830,12 @@ class AbstractPDF2XHTML extends PDFTextStripper {
         PDDocumentOutline outline = document.getDocumentCatalog().getDocumentOutline();
         if (outline != null) {
             xhtml.startElement("div", "class", "outlines");
-            extractBookmarkText(outline);
-            xhtml.endElement("div");
+            try {
+                extractBookmarkText(outline);
+            }
+            finally {
+                xhtml.endElement("div");
+            }
         }
     }
 
