@@ -40,7 +40,7 @@ public class AzureStatusResource extends AbstractAzureResource implements TikaSe
 
     private static final Logger LOG = LoggerFactory.getLogger(AzureStatusResource.class);
 
-    private HTMLHelper html = new HTMLHelper();
+    private final HTMLHelper html = new HTMLHelper();
 
     @GET
     @Produces({"text/html"})
@@ -50,6 +50,8 @@ public class AzureStatusResource extends AbstractAzureResource implements TikaSe
             @Context UriInfo info
     ) throws Exception
     {
+        LOG.info("Apache Azure Status");
+
         StringBuffer h = new StringBuffer();
         html.generateHeader(h, "Apache Azure Status");
 
@@ -67,7 +69,7 @@ public class AzureStatusResource extends AbstractAzureResource implements TikaSe
                 h.append("<li>Container : " + containerName + "</li>");
             }
             else {
-                h.append("<li>No container found.</li>");
+                h.append("<li>No container found in headers.</li>");
             }
 
             String containerDirectory = this.GetContainerDirectory(headers);
@@ -76,7 +78,7 @@ public class AzureStatusResource extends AbstractAzureResource implements TikaSe
                 h.append("<li>Container Directory : " + containerDirectory + "</li>");
             }
             else {
-                h.append("<li>No container directory configured.</li>");
+                h.append("<li>No container directory found in headers.</li>");
             }
 
             h.append("</ul>");
@@ -125,7 +127,7 @@ public class AzureStatusResource extends AbstractAzureResource implements TikaSe
         Map<String, String> env = System.getenv();
         for (String envName : env.keySet())
         {
-            if ( envName.indexOf(AZURE_STORAGE_CONNECTION_STRING) > -1 || envName.indexOf("KEY") > -1 )
+            if (envName.contains(AZURE_STORAGE_CONNECTION_STRING) || envName.contains("KEY"))
             {
                 h.append("<li>" + envName + " : secured </li>");
             }

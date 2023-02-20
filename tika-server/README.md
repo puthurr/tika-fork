@@ -24,6 +24,7 @@ Building tika-server skipping tests
 -----------------------------------
 
     mvn clean install -am -pl :tika-server-standard -DskipTests
+    mvn clean install -am -DskipTests
 
 Running
 -------
@@ -160,29 +161,26 @@ On top of the azure/unpack, we added a convert endpoint for converting PDF pages
 
 Azure Storage SDK for Java is added POM Dependency
 ```xml
-<!-- https://mvnrepository.com/artifact/com.azure/azure-core -->
-    <dependency>
-      <groupId>com.azure</groupId>
-      <artifactId>azure-core</artifactId>
-      <version>1.23.1</version>
-    </dependency>
-
     <!-- https://mvnrepository.com/artifact/com.azure/azure-storage-blob -->
-    <dependency>
-      <groupId>com.azure</groupId>
-      <artifactId>azure-storage-blob</artifactId>
-      <version>12.14.2</version>
-      <exclusions>
+<dependency>
+    <groupId>com.azure</groupId>
+    <artifactId>azure-storage-blob</artifactId>
+    <version>12.20.0</version>
+    <exclusions>
         <exclusion>
-          <groupId>com.azure</groupId>
-          <artifactId>azure-core</artifactId>
+            <groupId>io.projectreactor</groupId>
+            <artifactId>reactor-core</artifactId>
         </exclusion>
         <exclusion>
-          <groupId>io.projectreactor</groupId>
-          <artifactId>reactor-core</artifactId>
+            <groupId>io.projectreactor.netty</groupId>
+            <artifactId>reactor-netty-http</artifactId>
         </exclusion>
-      </exclusions>
-    </dependency>
+        <exclusion>
+            <groupId>com.fasterxml.woodstox</groupId>
+            <artifactId>woodstox-core</artifactId>
+        </exclusion>
+    </exclusions>
+</dependency>
 ```
 
 ### Azure Global Settings

@@ -17,15 +17,23 @@
 
 package org.apache.tika.server.standard.resource.azure;
 
+import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import javax.ws.rs.core.MultivaluedMap;
 
+import com.azure.storage.blob.BlobClient;
 import com.azure.storage.blob.BlobContainerClient;
 import com.azure.storage.blob.BlobServiceClient;
 import com.azure.storage.blob.BlobServiceClientBuilder;
 import com.azure.storage.blob.models.BlobErrorCode;
+import com.azure.storage.blob.models.BlobHttpHeaders;
 import com.azure.storage.blob.models.BlobStorageException;
+import com.azure.storage.blob.models.ParallelTransferOptions;
+import com.azure.storage.blob.options.BlobParallelUploadOptions;
 import org.apache.commons.codec.binary.Base64;
+
+import org.apache.tika.Tika;
 
 public class AbstractAzureResource {
     // AZURE
@@ -47,6 +55,16 @@ public class AbstractAzureResource {
 
     /* Create a new BlobServiceClient with a connection string */
     protected static BlobServiceClient blobServiceClient;
+
+    // Upload data variables
+    protected static final String OutputFormat = "png";
+    protected static final String OutputContentType = "image/" + OutputFormat;
+    protected BlobHttpHeaders sysproperties = new BlobHttpHeaders().setContentType(OutputContentType);
+    protected Long blockSize = 10L * 1024L * 1024L; // 10 MB;
+    protected ParallelTransferOptions parallelTransferOptions =
+            new ParallelTransferOptions().setBlockSizeLong(blockSize).setMaxConcurrency(5);
+
+    protected final Tika tikaDetector = new Tika();
 
     protected void AcquireBlobServiceClient()
     {
@@ -112,4 +130,18 @@ public class AbstractAzureResource {
         return containerDirectory;
     }
 
+    protected void UploadImage(BlobContainerClient containerClient,String containerDirectory,
+                               String imageName, byte[] data, Map<String, String> blobMetadata) {
+
+        BlobClient blobClient = containerClient.getBlobClient(containerDirectory + "/" + imageName);
+
+        BlobParallelUploadOptions options = new BlobParallelUploadOptions(new ByteArrayInputStream(data));
+        options.setMetadata(blobMetadata);
+        options.setParallelTransferOptions(parallelTransferOptions);
+        options.setHeaders(sysproperties);
+//            blobClient.uploadWithResponse(new ByteArrayInputStream(data), data.length, parallelTransferOptions,
+//                    sysproperties, blobMetadata, null, null, null, null);
+        blobClient.uploadWithResponse(options,null, null);
+
+    }
 }

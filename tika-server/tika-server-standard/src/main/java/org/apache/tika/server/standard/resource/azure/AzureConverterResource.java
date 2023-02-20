@@ -25,7 +25,6 @@ import java.awt.GraphicsConfiguration;
 import java.awt.GraphicsDevice;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.util.HashMap;
@@ -41,12 +40,9 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 
-import com.azure.storage.blob.BlobClient;
 import com.azure.storage.blob.BlobContainerClient;
 import com.azure.storage.blob.BlobServiceClientBuilder;
-import com.azure.storage.blob.models.BlobHttpHeaders;
 import com.azure.storage.blob.models.BlobStorageException;
-import com.azure.storage.blob.models.ParallelTransferOptions;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageTree;
@@ -71,13 +67,11 @@ public class AzureConverterResource extends AbstractAzureResource implements Tik
 
     private static final Logger LOG = LoggerFactory.getLogger(AzureConverterResource.class);
 
-    private static final String OutputFormat = "png";
-    private static final String OutputContentType = "image/" + OutputFormat;
 
     private static final int DPI = 300;
     private static final float DPI_SCALE = DPI / 72f;
 
-    private BaseParserConfig baseParserConfig = new BaseParserConfig();
+    private final BaseParserConfig baseParserConfig = new BaseParserConfig();
 
     static {
         if (connectStr != null) {
@@ -134,15 +128,6 @@ public class AzureConverterResource extends AbstractAzureResource implements Tik
 
         BufferedImage img = null;
 
-        /* AZURE */
-
-        BlobHttpHeaders sysproperties = new BlobHttpHeaders();
-        sysproperties.setContentType(OutputContentType);
-
-        Long blockSize = 10L * 1024L * 1024L; // 10 MB;
-        ParallelTransferOptions parallelTransferOptions =
-                new ParallelTransferOptions().setBlockSizeLong(blockSize).setMaxConcurrency(5);
-
         // Loop through the slides
         for (int i = 0; i < pptSlides.size(); i++) {
 
@@ -167,9 +152,7 @@ public class AzureConverterResource extends AbstractAzureResource implements Tik
             String imageName = baseParserConfig.getResourceFilename("image",
                     i + 1, 99999, "." + OutputFormat);
 
-            BlobClient blobClient = containerClient.getBlobClient(containerDirectory + "/" + imageName);
-            blobClient.uploadWithResponse(new ByteArrayInputStream(data), data.length, parallelTransferOptions,
-                    sysproperties, blobMetadata, null, null, null, null);
+            this.UploadImage(containerClient,containerDirectory,imageName,data,blobMetadata);
 
             out.close();
         }
@@ -228,15 +211,6 @@ public class AzureConverterResource extends AbstractAzureResource implements Tik
 
         BufferedImage img = null;
 
-        /* AZURE */
-
-        BlobHttpHeaders sysproperties = new BlobHttpHeaders();
-        sysproperties.setContentType(OutputContentType);
-
-        Long blockSize = 10L * 1024L * 1024L; // 10 MB;
-        ParallelTransferOptions parallelTransferOptions =
-                new ParallelTransferOptions().setBlockSizeLong(blockSize).setMaxConcurrency(5);
-
         // Loop through the slides
         for (int i = 0; i < pptSlides.size(); i++) {
 
@@ -261,9 +235,7 @@ public class AzureConverterResource extends AbstractAzureResource implements Tik
             String imageName = baseParserConfig.getResourceFilename("image",
                     i + 1, 99999, "." + OutputFormat);
 
-            BlobClient blobClient = containerClient.getBlobClient(containerDirectory + "/" + imageName);
-            blobClient.uploadWithResponse(new ByteArrayInputStream(data), data.length, parallelTransferOptions,
-                    sysproperties, blobMetadata, null, null, null, null);
+            this.UploadImage(containerClient,containerDirectory,imageName,data,blobMetadata);
 
             out.close();
         }
@@ -312,16 +284,6 @@ public class AzureConverterResource extends AbstractAzureResource implements Tik
             throw new WebApplicationException(Response.Status.BAD_REQUEST);
         }
 
-        /* AZURE */
-
-        BlobHttpHeaders sysproperties = new BlobHttpHeaders();
-        sysproperties.setContentType(OutputContentType);
-
-        Long blockSize = 10L * 1024L * 1024L; // 10 MB;
-        ParallelTransferOptions parallelTransferOptions =
-                new ParallelTransferOptions().setBlockSizeLong(blockSize).setMaxConcurrency(5);
-
-
         // PDF
         PDDocument pdfDocument = null;
 
@@ -351,9 +313,7 @@ public class AzureConverterResource extends AbstractAzureResource implements Tik
 
                 byte[] data = out.toByteArray();
 
-                BlobClient blobClient = containerClient.getBlobClient(containerDirectory + "/" + fileName);
-                blobClient.uploadWithResponse(new ByteArrayInputStream(data), data.length, parallelTransferOptions,
-                        sysproperties, blobMetadata, null, null, null, null);
+                this.UploadImage(containerClient,containerDirectory,fileName,data,blobMetadata);
 
                 out.close();
             }

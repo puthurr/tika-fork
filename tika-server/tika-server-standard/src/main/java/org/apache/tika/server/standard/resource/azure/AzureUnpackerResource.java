@@ -79,7 +79,7 @@ import org.apache.tika.utils.ParserUtils;
 @Path("/azure/unpack")
 public class AzureUnpackerResource extends AbstractAzureResource implements TikaServerResource {
     // 100MB max size
-    private static final long MAX_ATTACHMENT_BYTES = 100L * 1024L * 1024L;
+//    private static final long MAX_ATTACHMENT_BYTES = 100L * 1024L * 1024L;
 
     private static final Logger LOG = LoggerFactory.getLogger(AzureUnpackerResource.class);
 
@@ -145,7 +145,7 @@ public class AzureUnpackerResource extends AbstractAzureResource implements Tika
         }
 
         /* Create a new container client */
-        BlobContainerClient containerClient = null;
+        BlobContainerClient containerClient;
 
         try {
             containerClient = this.AcquireBlobContainerClient(containerName);
@@ -213,10 +213,10 @@ public class AzureUnpackerResource extends AbstractAzureResource implements Tika
     private class AzureEmbeddedDocumentExtractor implements EmbeddedDocumentExtractor {
         private final MutableInt count;
         private final Map<String, String> zout;
-        private BlobContainerClient containerClient ;
-        private Map<String, String> blobMetadata;
-        private String containerDirectory;
-        private List<Metadata> metadataList;
+        private final BlobContainerClient containerClient ;
+        private final Map<String, String> blobMetadata;
+        private final String containerDirectory;
+        private final List<Metadata> metadataList;
 
         AzureEmbeddedDocumentExtractor(MutableInt count, Map<String, String> zout,
                                        List<Metadata> metadataList,
@@ -239,14 +239,6 @@ public class AzureUnpackerResource extends AbstractAzureResource implements Tika
         public void parseEmbedded(InputStream inputStream, ContentHandler contentHandler, Metadata metadata, boolean b)
                 throws SAXException, IOException
         {
-//            ByteArrayOutputStream bos = new ByteArrayOutputStream();
-//            BoundedInputStream bis = new BoundedInputStream(MAX_ATTACHMENT_BYTES, inputStream);
-//            IOUtils.copy(bis, bos);
-//            if (bis.hasHitBound()) {
-//                throw new IOExceptionWithCause(
-//                        new TikaMemoryLimitException(MAX_ATTACHMENT_BYTES+1, MAX_ATTACHMENT_BYTES));
-//            }
-//            byte[] data = bos.toByteArray();
             byte[] data = org.apache.commons.io.IOUtils.toByteArray(inputStream);
 
             String name = metadata.get(TikaCoreProperties.RESOURCE_NAME_KEY);
@@ -255,6 +247,8 @@ public class AzureUnpackerResource extends AbstractAzureResource implements Tika
             if (name == null) {
                 name = Integer.toString(count.intValue());
             }
+
+            if (contentType == null) contentType = tikaDetector.detect(name);
 
             if (!name.contains(".") && contentType != null) {
                 try {

@@ -115,45 +115,36 @@
       </exclusions>
     </dependency>
 
-    <!-- https://mvnrepository.com/artifact/com.azure/azure-core -->
+    <!-- https://mvnrepository.com/artifact/io.projectreactor.netty/reactor-netty-http -->
     <dependency>
-      <groupId>com.azure</groupId>
-      <artifactId>azure-core</artifactId>
-      <version>1.23.1</version>
+      <groupId>io.projectreactor.netty</groupId>
+      <artifactId>reactor-netty-http</artifactId>
+      <version>1.0.28</version>
     </dependency>
 
     <!-- https://mvnrepository.com/artifact/com.azure/azure-storage-blob -->
     <dependency>
       <groupId>com.azure</groupId>
       <artifactId>azure-storage-blob</artifactId>
-      <version>12.14.2</version>
+      <version>12.20.3</version>
       <exclusions>
-        <exclusion>
-          <groupId>com.azure</groupId>
-          <artifactId>azure-core</artifactId>
-        </exclusion>
         <exclusion>
           <groupId>io.projectreactor</groupId>
           <artifactId>reactor-core</artifactId>
         </exclusion>
-      </exclusions>
-<!--
-      <scope>compile</scope>
-      <exclusions>
         <exclusion>
-          <groupId>com.fasterxml.jackson.core</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.fasterxml.jackson.module</groupId>
-          <artifactId>*</artifactId>
+          <groupId>io.projectreactor.netty</groupId>
+          <artifactId>reactor-netty-http</artifactId>
         </exclusion>
         <exclusion>
           <groupId>com.fasterxml.woodstox</groupId>
+          <artifactId>woodstox-core</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>io.netty</groupId>
           <artifactId>*</artifactId>
         </exclusion>
       </exclusions>
-      -->
     </dependency>
 
     <dependency>
