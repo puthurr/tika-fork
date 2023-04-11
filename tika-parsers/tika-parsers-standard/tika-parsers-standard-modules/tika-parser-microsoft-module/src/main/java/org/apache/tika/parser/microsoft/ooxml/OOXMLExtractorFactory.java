@@ -20,6 +20,7 @@ import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
 import java.util.Locale;
 
 import org.apache.commons.compress.archivers.zip.UnsupportedZipFeatureException;
@@ -35,9 +36,9 @@ import org.apache.poi.openxml4j.opc.PackageAccess;
 import org.apache.poi.openxml4j.opc.PackagePart;
 import org.apache.poi.openxml4j.opc.PackageRelationshipCollection;
 import org.apache.poi.util.LocaleUtil;
+import org.apache.poi.xslf.extractor.XSLFExtractor;
 import org.apache.poi.xslf.usermodel.XMLSlideShow;
 import org.apache.poi.xslf.usermodel.XSLFRelation;
-import org.apache.poi.xslf.usermodel.XSLFSlideShow;
 import org.apache.poi.xssf.extractor.XSSFBEventBasedExcelExtractor;
 import org.apache.poi.xssf.extractor.XSSFEventBasedExcelExtractor;
 import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
@@ -62,7 +63,6 @@ import org.apache.tika.parser.microsoft.OfficeParserConfig;
 import org.apache.tika.parser.microsoft.ooxml.xps.XPSExtractorDecorator;
 import org.apache.tika.parser.microsoft.ooxml.xps.XPSTextExtractor;
 import org.apache.tika.parser.microsoft.ooxml.xslf.XSLFEventBasedPowerPointExtractor;
-import org.apache.tika.parser.microsoft.ooxml.xslf.XSLFPowerPointExtractor;
 import org.apache.tika.parser.microsoft.ooxml.xwpf.XWPFEventBasedWordExtractor;
 import org.apache.tika.utils.RereadableInputStream;
 import org.apache.tika.zip.utils.ZipSalvager;
@@ -75,9 +75,11 @@ public class OOXMLExtractorFactory {
 
     private static final Logger LOG = LoggerFactory.getLogger(OOXMLExtractorFactory.class);
     private static final int MAX_BUFFER_LENGTH = 1000000;
+    private static POIXMLExtractorFactory EXTRACTOR_FACTORY = new POIXMLExtractorFactory();
+
 
     //TODO find what happened to SUPPORTED_TYPES
-    private static XSLFRelation[] XSLF_RELATIONS = new XSLFRelation[]{
+    private static XSLFRelation[] XSLF_RELATIONS = new XSLFRelation[] {
             XSLFRelation.MAIN, XSLFRelation.MACRO, XSLFRelation.MACRO_TEMPLATE,
             XSLFRelation.PRESENTATIONML,
             XSLFRelation.PRESENTATIONML_TEMPLATE, XSLFRelation.PRESENTATION_MACRO
@@ -101,31 +103,31 @@ public class OOXMLExtractorFactory {
 
             // Locate or Open the OPCPackage for the file
             TikaInputStream tis = TikaInputStream.cast(stream);
-            if (tis != null && tis.getOpenContainer() instanceof OPCPackage) {
-                pkg = (OPCPackage) tis.getOpenContainer();
+            if (tis != null && tis.getOpenContainer() instanceof OPCPackageWrapper) {
+                pkg = ((OPCPackageWrapper) tis.getOpenContainer()).getOPCPackage();
             } else if (tis != null && tis.hasFile()) {
                 try {
                     pkg = OPCPackage.open(tis.getFile().getPath(), PackageAccess.READ);
                 } catch (InvalidOperationException e) {
-                    tmpRepairedCopy = File.createTempFile("tika-ooxml-repair-", "");
+                    tmpRepairedCopy = Files.createTempFile("tika-ooxml-repair-", "").toFile();
                     ZipSalvager.salvageCopy(tis.getFile(), tmpRepairedCopy);
                     pkg = OPCPackage.open(tmpRepairedCopy, PackageAccess.READ);
                 }
-                tis.setOpenContainer(pkg);
+                tis.setOpenContainer(new OPCPackageWrapper(pkg));
             } else {
                 //OPCPackage slurps rris into memory so we can close rris
                 //without apparent problems
                 try (RereadableInputStream rereadableInputStream = new RereadableInputStream(stream,
                         MAX_BUFFER_LENGTH, false)) {
                     try {
-                        pkg = OPCPackage.open(CloseShieldInputStream.wrap(rereadableInputStream));
+                        pkg = OPCPackage.open(new CloseShieldInputStream(rereadableInputStream));
                     } catch (UnsupportedZipFeatureException e) {
                         if (e.getFeature() !=
                                 UnsupportedZipFeatureException.Feature.DATA_DESCRIPTOR) {
                             throw e;
                         }
                         rereadableInputStream.rewind();
-                        tmpRepairedCopy = File.createTempFile("tika-ooxml-repair-", "");
+                        tmpRepairedCopy = Files.createTempFile("tika-ooxml-repair-", "").toFile();
                         ZipSalvager.salvageCopy(rereadableInputStream, tmpRepairedCopy, false);
                         //if there isn't enough left to be opened as a package
                         //throw an exception -- we may want to fall back to streaming
@@ -141,7 +143,7 @@ public class OOXMLExtractorFactory {
                             throw e;
                         }
                         rereadableInputStream.rewind();
-                        tmpRepairedCopy = File.createTempFile("tika-ooxml-repair-", "");
+                        tmpRepairedCopy = Files.createTempFile("tika-ooxml-repair-", "").toFile();
                         ZipSalvager.salvageCopy(rereadableInputStream, tmpRepairedCopy, false);
                         //if there isn't enough left to be opened as a package
                         //throw an exception -- we may want to fall back to streaming
@@ -197,7 +199,7 @@ public class OOXMLExtractorFactory {
             }
 
             if (poiExtractor == null) {
-                poiExtractor = new POIXMLExtractorFactory().create(pkg);
+                poiExtractor = EXTRACTOR_FACTORY.create(pkg);
             }
 
             POIXMLDocument document = poiExtractor.getDocument();
@@ -224,7 +226,7 @@ public class OOXMLExtractorFactory {
                                 "The extractor returned was a " + poiExtractor);
             } else if (document instanceof XMLSlideShow) {
                 extractor = new XSLFPowerPointExtractorDecorator(metadata, context,
-                        (XSLFPowerPointExtractor) poiExtractor);
+                        (org.apache.poi.xslf.extractor.XSLFExtractor) poiExtractor);
             } else if (document instanceof XWPFDocument) {
                 extractor = new XWPFWordExtractorDecorator(metadata, context,
                         (XWPFWordExtractor) poiExtractor);
@@ -254,7 +256,7 @@ public class OOXMLExtractorFactory {
         } finally {
             if (tmpRepairedCopy != null) {
                 if (pkg != null) {
-                    pkg.close();
+                    pkg.revert();
                 }
                 boolean deleted = tmpRepairedCopy.delete();
                 if (!deleted) {
@@ -315,7 +317,7 @@ public class OOXMLExtractorFactory {
                 if (eventBased) {
                     return new XSLFEventBasedPowerPointExtractor(pkg);
                 } else {
-                    return new XSLFPowerPointExtractor(new XSLFSlideShow(pkg));
+                    return new XSLFExtractor(new XMLSlideShow(pkg));
                 }
             }
         }
@@ -324,7 +326,7 @@ public class OOXMLExtractorFactory {
             if (eventBased) {
                 return new XSLFEventBasedPowerPointExtractor(pkg);
             } else {
-                return new XSLFPowerPointExtractor(new XMLSlideShow(pkg));
+                return new XSLFExtractor(new XMLSlideShow(pkg));
             }
         }
         return null;

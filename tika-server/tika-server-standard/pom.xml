@@ -19,7 +19,7 @@
   <parent>
     <artifactId>tika-server</artifactId>
     <groupId>org.apache.tika</groupId>
-    <version>2.2.2-SNAPSHOT</version>
+    <version>2.7.0</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
@@ -50,6 +50,11 @@
       </exclusions>
     </dependency>
     <dependency>
+      <groupId>org.apache.tika</groupId>
+      <artifactId>tika-parser-html-commons</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>tika-xmp</artifactId>
       <version>${project.version}</version>
@@ -59,21 +64,15 @@
       <artifactId>tika-emitter-fs</artifactId>
       <version>${project.version}</version>
     </dependency>
-    <!-- test jars -->
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>tika-server-core</artifactId>
-      <version>${project.version}</version>
-      <type>test-jar</type>
-      <scope>test</scope>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-core</artifactId>
     </dependency>
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>tika-core</artifactId>
-      <version>${project.version}</version>
-      <type>test-jar</type>
-      <scope>test</scope>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-slf4j2-impl</artifactId>
     </dependency>
+    <!-- PUTHURR -->
     <!-- Support for jpeg2000 and jbig2 images format -->
     <!-- https://pdfbox.apache.org/2.0/dependencies.html#optional-components -->
     <dependency>
@@ -81,7 +80,6 @@
       <artifactId>jai-imageio-core</artifactId>
       <version>1.4.0</version>
     </dependency>
-
     <dependency>
       <groupId>com.github.jai-imageio</groupId>
       <artifactId>jai-imageio-jpeg2000</artifactId>
@@ -93,19 +91,17 @@
         </exclusion>
       </exclusions>
     </dependency>
-
     <!-- Optional for you ; just to avoid the same error with JBIG2 images -->
     <dependency>
       <groupId>org.apache.pdfbox</groupId>
       <artifactId>jbig2-imageio</artifactId>
-      <version>3.0.3</version>
+      <version>3.0.4</version>
     </dependency>
-
     <!-- https://mvnrepository.com/artifact/org.apache.xmlgraphics/batik-all -->
     <dependency>
       <groupId>org.apache.xmlgraphics</groupId>
       <artifactId>batik-all</artifactId>
-      <version>1.14</version>
+      <version>1.16</version>
       <type>pom</type>
       <exclusions>
         <exclusion>
@@ -114,14 +110,12 @@
         </exclusion>
       </exclusions>
     </dependency>
-
     <!-- https://mvnrepository.com/artifact/io.projectreactor.netty/reactor-netty-http -->
     <dependency>
       <groupId>io.projectreactor.netty</groupId>
       <artifactId>reactor-netty-http</artifactId>
       <version>1.0.28</version>
     </dependency>
-
     <!-- https://mvnrepository.com/artifact/com.azure/azure-storage-blob -->
     <dependency>
       <groupId>com.azure</groupId>
@@ -146,16 +140,27 @@
         </exclusion>
       </exclusions>
     </dependency>
-
+    <!-- END PUTHURR -->
+    <!-- test jars -->
     <dependency>
-      <groupId>org.apache.logging.log4j</groupId>
-      <artifactId>log4j-core</artifactId>
-      <version>${log4j2.version}</version>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>tika-server-core</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.apache.logging.log4j</groupId>
-      <artifactId>log4j-slf4j-impl</artifactId>
-      <version>${log4j2.version}</version>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>tika-core</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>tika-langdetect-opennlp</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
     </dependency>
   </dependencies>
   <build>
@@ -383,6 +388,6 @@
   </build>
 
   <scm>
-    <tag>2.2.1-rc2</tag>
+    <tag>2.7.0-rc1</tag>
   </scm>
 </project>

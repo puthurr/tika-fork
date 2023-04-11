@@ -85,7 +85,7 @@ public class AzureConverterResource extends AbstractAzureResource implements Tik
     public String convertPPTX(InputStream is, @Context HttpHeaders httpHeaders, @Context UriInfo info)
             throws Exception {
 
-        InputStream tikaInputStream = TikaResource.getInputStream(is, new Metadata(), httpHeaders);
+        InputStream tikaInputStream = TikaResource.getInputStream(is, new Metadata(), httpHeaders, info);
 
         TikaResource.logRequest(LOG, info.toString(), new Metadata());
 
@@ -166,7 +166,7 @@ public class AzureConverterResource extends AbstractAzureResource implements Tik
     public String convertPPT(InputStream is, @Context HttpHeaders httpHeaders, @Context UriInfo info)
             throws Exception {
 
-        InputStream tikaInputStream = TikaResource.getInputStream(is, new Metadata(), httpHeaders);
+        InputStream tikaInputStream = TikaResource.getInputStream(is, new Metadata(), httpHeaders, info);
 
         TikaResource.logRequest(LOG, info.toString(), new Metadata());
 
@@ -250,7 +250,7 @@ public class AzureConverterResource extends AbstractAzureResource implements Tik
     public String convertPDF(InputStream is, @Context HttpHeaders httpHeaders, @Context UriInfo info)
             throws Exception {
 
-        InputStream tikaInputStream = TikaResource.getInputStream(is, new Metadata(), httpHeaders);
+        InputStream tikaInputStream = TikaResource.getInputStream(is, new Metadata(), httpHeaders, info);
 
         TikaResource.logRequest(LOG, info.toString(), new Metadata());
 

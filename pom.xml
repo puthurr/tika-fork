@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.tika</groupId>
     <artifactId>tika-parent</artifactId>
-    <version>2.2.2-SNAPSHOT</version>
+    <version>2.7.0</version>
     <relativePath>tika-parent/pom.xml</relativePath>
   </parent>
 
@@ -36,14 +36,24 @@
 
   <modules>
     <module>tika-parent</module>
+    <module>tika-bom</module>
     <module>tika-core</module>
     <module>tika-serialization</module>
     <module>tika-parsers</module>
+    <module>tika-bundles</module>
     <module>tika-xmp</module>
+    <module>tika-batch</module>
     <module>tika-langdetect</module>
+    <module>tika-pipes</module>
+    <module>tika-app</module>
     <module>tika-server</module>
+    <module>tika-integration-tests</module>
     <module>tika-eval</module>
+    <module>tika-fuzzing</module>
     <module>tika-translate</module>
+    <module>tika-example</module>
+    <module>tika-java7</module>
+    <module>tika-detectors</module>
   </modules>
 
   <profiles>
@@ -78,6 +88,7 @@
             </executions>
           </plugin>
           <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-antrun-plugin</artifactId>
             <version>${maven.antrun.version}</version>
             <executions>
@@ -87,7 +98,7 @@
                 </goals>
                 <phase>deploy</phase>
                 <configuration>
-                  <tasks>
+                  <target>
                     <mkdir dir="${basedir}/target/${project.version}" />
                     <copy todir="${basedir}/target/${project.version}" flatten="true">
                       <fileset dir="${basedir}">
@@ -95,6 +106,7 @@
                         <include name="target/*-src.zip*" />
                         <include name="tika-parsers/tika-parsers-extended/tika-parser-scientific-package/target/tika-parser-scientific-package-${project.version}.jar*" />
                         <include name="tika-parsers/tika-parsers-extended/tika-parser-sqlite3-package/target/tika-parser-sqlite3-package-${project.version}.jar*" />
+                        <include name="tika-parsers/tika-parsers-ml/tika-parser-nlp-package/target/tika-parser-nlp-package-${project.version}.jar*" />
                         <include name="tika-app/target/tika-app-${project.version}.jar*" />
                         <include name="tika-server/tika-server-standard/target/tika-server-standard-${project.version}.jar*" />
                         <include name="tika-server/tika-server-standard/target/tika-server-standard-${project.version}-bin.tgz*" />
@@ -151,7 +163,7 @@ least three +1 Tika PMC votes are cast.
                       file://${basedir}/target/vote.txt
                     </echo>
                     <echo />
-                  </tasks>
+                  </target>
                 </configuration>
               </execution>
             </executions>
@@ -180,6 +192,7 @@ least three +1 Tika PMC votes are cast.
             <exclude>README.md</exclude>
             <!-- remove this once we figure out the bundle packaging -->
             <exclude>tika-bundle/src/main/resources/META-INF/MANIFEST.MF</exclude>
+            <exclude>.gitattributes</exclude>
           </excludes>
         </configuration>
       </plugin>
@@ -202,6 +215,6 @@ least three +1 Tika PMC votes are cast.
   </ciManagement>
 
   <scm>
-    <tag>2.2.1-rc2</tag>
+    <tag>2.7.0-rc1</tag>
   </scm>
 </project>

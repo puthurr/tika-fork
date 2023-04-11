@@ -65,11 +65,10 @@ public class StringsParserTest {
             e.printStackTrace();
         }
 
-        // PUTHURR - failing test
         // Content
-//        for (String word : content) {
-//            assertTrue("can't find " + word, handler.toString().contains(word));
-//        }
+        //for (String word : content) {
+        //    assertTrue(handler.toString().contains(word), "can't find " + word);
+        //}
 
         // Metadata
         Arrays.equals(met_attributes, metadata.names());

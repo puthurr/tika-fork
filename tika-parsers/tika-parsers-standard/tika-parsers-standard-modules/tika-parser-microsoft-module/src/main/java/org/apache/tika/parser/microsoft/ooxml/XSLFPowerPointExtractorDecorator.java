@@ -31,6 +31,7 @@ import org.apache.poi.openxml4j.opc.PackageRelationshipCollection;
 import org.apache.poi.openxml4j.opc.PackagingURIHelper;
 import org.apache.poi.openxml4j.opc.TargetMode;
 import org.apache.poi.sl.usermodel.Placeholder;
+import org.apache.poi.xslf.extractor.XSLFExtractor;
 import org.apache.poi.xslf.usermodel.XMLSlideShow;
 import org.apache.poi.xslf.usermodel.XSLFComment;
 import org.apache.poi.xslf.usermodel.XSLFCommentAuthors;
@@ -64,7 +65,6 @@ import org.xml.sax.helpers.AttributesImpl;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.ParseContext;
-import org.apache.tika.parser.microsoft.ooxml.xslf.XSLFPowerPointExtractor;
 import org.apache.tika.sax.XHTMLContentHandler;
 
 public class XSLFPowerPointExtractorDecorator extends AbstractOOXMLExtractor {
@@ -75,14 +75,14 @@ public class XSLFPowerPointExtractorDecorator extends AbstractOOXMLExtractor {
     private Metadata metadata;
 
     public XSLFPowerPointExtractorDecorator(Metadata metadata, ParseContext context,
-                                            XSLFPowerPointExtractor extractor) {
+                                            XSLFExtractor extractor) {
         super(context, extractor);
         this.metadata = metadata;
     }
 
 
     /**
-     * @see org.apache.poi.xslf.extractor.XSLFPowerPointExtractor#getText()
+//     * @see org.apache.poi.xslf.extractor.XSLFPowerPointExtractor#getText()
      */
     protected void buildXHTML(XHTMLContentHandler xhtml) throws SAXException, IOException {
         XMLSlideShow slideShow = (XMLSlideShow) extractor.getDocument();
@@ -234,8 +234,7 @@ public class XSLFPowerPointExtractorDecorator extends AbstractOOXMLExtractor {
             } else if (sh instanceof XSLFGraphicFrame) {
                 XSLFGraphicFrame frame = (XSLFGraphicFrame) sh;
                 XmlObject[] sp = frame.getXmlObject().selectPath(
-                        "declare namespace p='http://schemas.openxmlformats.org/presentationml/2006/main' " +
-                                ".//*/p:oleObj");
+                        "declare namespace p='http://schemas.openxmlformats.org/presentationml/2006/main' .//*/p:oleObj");
                 if (sp != null) {
                     for (XmlObject emb : sp) {
                         XmlObject relIDAtt = emb.selectAttribute(new QName(

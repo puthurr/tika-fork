@@ -78,11 +78,12 @@ public class RecursiveMetadataResource {
             TikaResource.parse(wrapper, LOG, "/rmeta", is, handler, metadata, context);
         } catch (TikaServerParseException e) {
             //do nothing
+            LOG.debug("server parse exception", e);
         } catch (SecurityException | WebApplicationException e) {
             throw e;
         } catch (Exception e) {
             //we shouldn't get here?
-            e.printStackTrace();
+            LOG.error("something went seriously wrong", e);
         }
 
         return handler.getMetadataList();
@@ -140,7 +141,7 @@ public class RecursiveMetadataResource {
         return new HandlerConfig(
                 BasicContentHandlerFactory.parseHandlerType(handlerTypeName, DEFAULT_HANDLER_TYPE),
                 parseMode,
-                writeLimit, maxEmbeddedResources);
+                writeLimit, maxEmbeddedResources, TikaResource.getThrowOnWriteLimitReached(httpHeaders));
     }
 
     /**
@@ -176,7 +177,7 @@ public class RecursiveMetadataResource {
             throws Exception {
         Metadata metadata = new Metadata();
         return Response.ok(parseMetadataToMetadataList(
-                TikaResource.getInputStream(is, metadata, httpHeaders), metadata,
+                TikaResource.getInputStream(is, metadata, httpHeaders, info), metadata,
                 httpHeaders.getRequestHeaders(), info,
                 buildHandlerConfig(httpHeaders.getRequestHeaders(), handlerTypeName,
                         HandlerConfig.PARSE_MODE.RMETA))).build();

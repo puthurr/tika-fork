@@ -78,8 +78,6 @@ import org.apache.tika.utils.ParserUtils;
 
 @Path("/azure/unpack")
 public class AzureUnpackerResource extends AbstractAzureResource implements TikaServerResource {
-    // 100MB max size
-//    private static final long MAX_ATTACHMENT_BYTES = 100L * 1024L * 1024L;
 
     private static final Logger LOG = LoggerFactory.getLogger(AzureUnpackerResource.class);
 
@@ -100,7 +98,7 @@ public class AzureUnpackerResource extends AbstractAzureResource implements Tika
             @Context UriInfo info
     ) throws Exception
     {
-        return process(TikaResource.getInputStream(is, new Metadata(), httpHeaders), httpHeaders, info, false);
+        return process(TikaResource.getInputStream(is, new Metadata(), httpHeaders, info), httpHeaders, info, false);
     }
 
     @Path("/all{id:(/.*)?}")
@@ -112,7 +110,7 @@ public class AzureUnpackerResource extends AbstractAzureResource implements Tika
             @Context UriInfo info
     ) throws Exception
     {
-        return process(TikaResource.getInputStream(is, new Metadata(), httpHeaders), httpHeaders, info, true);
+        return process(TikaResource.getInputStream(is, new Metadata(), httpHeaders, info), httpHeaders, info, true);
     }
 
     private MetadataList process(

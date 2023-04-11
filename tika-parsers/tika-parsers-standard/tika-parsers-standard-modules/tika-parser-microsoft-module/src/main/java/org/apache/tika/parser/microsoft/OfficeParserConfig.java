@@ -16,6 +16,7 @@
  */
 package org.apache.tika.parser.microsoft;
 
+
 import java.io.Serializable;
 
 import org.apache.tika.parser.config.BaseParserConfig;
@@ -38,6 +39,7 @@ public class OfficeParserConfig extends BaseParserConfig implements Serializable
     private boolean extractAllAlternativesFromMSG;
 
     private String dateOverrideFormat = null;
+    private int maxOverride = 0;//ignore
 
     // PUTHURR
     private boolean includeSlideShowEmbeddedResources = true;
@@ -50,8 +52,18 @@ public class OfficeParserConfig extends BaseParserConfig implements Serializable
         this.includeSlideShowEmbeddedResources = includeSlideShowEmbeddedResources;
     }
 
+    //PUTHURR
+
     /**
-     * Sets whether or not MSOffice parsers should extract macros.
+     *
+     * @return whether to extract macros
+     */
+    public boolean isExtractMacros() {
+        return extractMacros;
+    }
+
+    /**
+     * Sets whether MSOffice parsers should extract macros.
      * As of Tika 1.15, the default is <code>false</code>.
      *
      * @param extractMacros
@@ -60,20 +72,12 @@ public class OfficeParserConfig extends BaseParserConfig implements Serializable
         this.extractMacros = extractMacros;
     }
 
-    /**
-     *
-     * @return whether or not to extract macros
-     */
-    public boolean isExtractMacros() {
-        return extractMacros;
-    }
-
     public boolean isIncludeDeletedContent() {
         return includeDeletedContent;
     }
 
     /**
-     * Sets whether or not the parser should include deleted content.
+     * Sets whether the parser should include deleted content.
      * <p/>
      * <b>This has only been implemented in the streaming docx parser
      * ({@link org.apache.tika.parser.microsoft.ooxml.SXWPFWordExtractorDecorator} so far!!!</b>
@@ -130,10 +134,10 @@ public class OfficeParserConfig extends BaseParserConfig implements Serializable
     }
 
     /**
-     * Whether or not to include headers and footers.
+     * Whether to include headers and footers.
      * <p/>
      * This only operates on headers and footers in Word and Excel,
-     * not master slide content in Powerpoint.
+     * not master slide content in PowerPoint.
      * <p/>
      * Default: <code>true</code>
      *
@@ -279,6 +283,14 @@ public class OfficeParserConfig extends BaseParserConfig implements Serializable
      */
     public void setDateOverrideFormat(String format) {
         this.dateOverrideFormat = format;
+    }
+
+    public void setMaxOverride(int maxOverride) {
+        this.maxOverride = maxOverride;
+    }
+
+    public int getMaxOverride() {
+        return this.maxOverride;
     }
 }
 

@@ -39,9 +39,9 @@ public class XPSTextExtractor implements POIXMLTextExtractor {
     private final POIXMLProperties properties;
 
     public XPSTextExtractor(OPCPackage pkg) throws OpenXML4JException, XmlException, IOException {
-//        super((POIXMLDocument)null);
         this.pkg = pkg;
         this.properties = new POIXMLProperties(pkg);
+
     }
 
     @Override
@@ -55,7 +55,7 @@ public class XPSTextExtractor implements POIXMLTextExtractor {
     }
 
     @Override
-    public void setCloseFilesystem(boolean doCloseFilesystem) {
+    public void setCloseFilesystem(boolean b) {
 
     }
 
@@ -68,7 +68,6 @@ public class XPSTextExtractor implements POIXMLTextExtractor {
     public Closeable getFilesystem() {
         return null;
     }
-
 
     public POIXMLProperties.CoreProperties getCoreProperties() {
         return this.properties.getCoreProperties();
@@ -86,5 +85,4 @@ public class XPSTextExtractor implements POIXMLTextExtractor {
     public POIXMLDocument getDocument() {
         return null;
     }
-
 }

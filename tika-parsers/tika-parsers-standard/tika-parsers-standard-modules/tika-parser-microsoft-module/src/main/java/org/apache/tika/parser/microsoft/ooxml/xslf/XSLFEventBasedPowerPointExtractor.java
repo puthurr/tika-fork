@@ -40,7 +40,6 @@ public class XSLFEventBasedPowerPointExtractor implements POIXMLTextExtractor {
 
     public XSLFEventBasedPowerPointExtractor(OPCPackage container)
             throws XmlException, OpenXML4JException, IOException {
-//        super((POIXMLDocument) null);
         this.container = container;
         this.properties = new POIXMLProperties(container);
     }
@@ -74,7 +73,7 @@ public class XSLFEventBasedPowerPointExtractor implements POIXMLTextExtractor {
     }
 
     @Override
-    public void setCloseFilesystem(boolean doCloseFilesystem) {
+    public void setCloseFilesystem(boolean b) {
 
     }
 
@@ -86,6 +85,11 @@ public class XSLFEventBasedPowerPointExtractor implements POIXMLTextExtractor {
     @Override
     public Closeable getFilesystem() {
         return null;
+    }
+
+    @Override
+    public void close() throws IOException {
+        getPackage().revert();
     }
 
     private static class XSLFToTextContentHandler

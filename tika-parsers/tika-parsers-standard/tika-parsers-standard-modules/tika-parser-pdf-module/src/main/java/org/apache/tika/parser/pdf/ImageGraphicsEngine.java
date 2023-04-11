@@ -62,6 +62,7 @@ import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.parser.ParseContext;
+import org.apache.tika.parser.pdf.statistics.PDFStatistics;
 import org.apache.tika.sax.EmbeddedContentHandler;
 import org.apache.tika.sax.XHTMLContentHandler;
 
@@ -274,10 +275,7 @@ class ImageGraphicsEngine extends PDFGraphicsStreamEngine {
     }
 
     @Override
-    protected void showGlyph(Matrix textRenderingMatrix,
-                             PDFont font,
-                             int code,
-                             String unicode,
+    protected void showGlyph(Matrix textRenderingMatrix, PDFont font, int code, String unicode,
                              Vector displacement) throws IOException {
 
         RenderingMode renderingMode = getGraphicsState().getTextState().getRenderingMode();
@@ -406,7 +404,7 @@ class ImageGraphicsEngine extends PDFGraphicsStreamEngine {
         }
     }
 
-    List<IOException> getExceptions() {
+    public List<IOException> getExceptions() {
         return exceptions;
     }
 

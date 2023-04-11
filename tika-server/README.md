@@ -123,14 +123,14 @@ HTTP Return Codes
     <dependency>
       <groupId>org.apache.pdfbox</groupId>
       <artifactId>jbig2-imageio</artifactId>
-      <version>3.0.3</version>
+      <version>3.0.4</version>
     </dependency>
 
     <!-- https://mvnrepository.com/artifact/org.apache.xmlgraphics/batik-all -->
     <dependency>
       <groupId>org.apache.xmlgraphics</groupId>
       <artifactId>batik-all</artifactId>
-      <version>1.14</version>
+      <version>1.16</version>
       <type>pom</type>
       <exclusions>
         <exclusion>

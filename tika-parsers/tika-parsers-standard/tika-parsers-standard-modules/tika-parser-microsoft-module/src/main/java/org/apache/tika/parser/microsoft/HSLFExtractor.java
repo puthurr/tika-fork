@@ -81,14 +81,12 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
         return fragment.replaceFirst("\\r$", "");
     }
 
-    protected void parse(
-            POIFSFileSystem filesystem, XHTMLContentHandler xhtml)
+    protected void parse(POIFSFileSystem filesystem, XHTMLContentHandler xhtml)
             throws IOException, SAXException, TikaException {
         parse(filesystem.getRoot(), xhtml);
     }
 
-    protected void parse(
-            DirectoryNode root, XHTMLContentHandler xhtml)
+    protected void parse(DirectoryNode root, XHTMLContentHandler xhtml)
             throws IOException, SAXException, TikaException {
         List<HSLFSlide> _slides;
 
@@ -174,7 +172,7 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
             // PUTHURR
             if (officeParserConfig.isIncludeSlideShowEmbeddedResources()) {
                 handleSlideShowEmbeddedPictures(ss, xhtml);
-                handleShowEmbeddedResources(ss, xhtml);
+                handleShowEmbeddedResources(ss, xhtml, true);
             }
 
             if (officeParserConfig.isExtractMacros()) {
@@ -192,9 +190,10 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
      * them in the shapes in the slides, headers/footers, etc, try to
      * extract them here.
      **/
-    private void handleShowEmbeddedResources(HSLFSlideShow ss, XHTMLContentHandler xhtml)
+    private void handleShowEmbeddedResources(HSLFSlideShow ss, XHTMLContentHandler xhtml,
+                                             boolean outputHtml)
             throws SAXException {
-
+        
         HSLFObjectData[] objectData = ss.getEmbeddedObjects();
         int i = 0;
         for (HSLFObjectData d : objectData) {
@@ -213,7 +212,7 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
                         if (pfs.getRoot().getEntryNames().size() < 1) {
                             return;
                         }
-                        handleEmbeddedOfficeDoc(pfs.getRoot(), filename, xhtml);
+                        handleEmbeddedOfficeDoc(pfs.getRoot(), filename, xhtml, outputHtml);
                     }
                 } else {
                     boolean shouldProcess = false;
@@ -538,6 +537,8 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
         byte[] data = null;
         try {
             data = pic.getData();
+        } catch (SecurityException e) {
+            throw e;
         } catch (Exception e) {
             EmbeddedDocumentUtil.recordEmbeddedStreamException(e, parentMetadata);
             return;
@@ -551,7 +552,7 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
                 pic.getIndex(), ext));
 
         try (TikaInputStream picIs = TikaInputStream.get(data)) {
-            handleEmbeddedResource(0, picIs, embeddedMetadata, null, null, null, mediaType, xhtml, false);
+            handleEmbeddedResource(slideNumber, picIs, embeddedMetadata, null, null, null, mediaType, xhtml, false);
         }
     }
 
@@ -570,7 +571,7 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
                 try {
                     data = oleShape.getObjectData();
                 } catch (NullPointerException e) {
-                    /* getObjectData throws NPE some times. */
+                    /* getObjectData throws NPE sometimes. */
                     EmbeddedDocumentUtil.recordEmbeddedStreamException(e, parentMetadata);
                     continue;
                 }
@@ -594,49 +595,46 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
                         EmbeddedDocumentUtil.recordEmbeddedStreamException(e, parentMetadata);
                         continue;
                     }
-                    try (TikaInputStream stream = TikaInputStream.get(dataStream)) {
-                        String mediaType = null;
-                        if ("Excel.Chart.8".equals(oleShape.getProgId())) {
-                            mediaType = "application/vnd.ms-excel";
-                            //If this is chart there ia an associated picture...
-                            handleSlideEmbeddedPictureObject(slideNumber, shape, xhtml);
-                        } else {
-                            MediaType mt =
-                                    getTikaConfig().getDetector().detect(stream, new Metadata());
-                            mediaType = mt.toString();
-                        }
-                        if (mediaType
-                                .equals("application/x-tika-msoffice-embedded; format=comp_obj") ||
-                                mediaType.equals("application/x-tika-msoffice")) {
-                            POIFSFileSystem poifs = null;
-
-                            try {
-                                poifs = new POIFSFileSystem(new CloseShieldInputStream(stream));
-                            } catch (RuntimeException e) {
-                                throw new IOException(e);
-                            }
-                            try {
-                                handleEmbeddedOfficeDoc(slideNumber,
-                                        poifs.getRoot(),
-                                        objID,
-                                        xhtml);
-                            } finally {
-                                if (poifs != null) {
-                                    poifs.close();
-                                }
-                            }
-                        } else {
-                            handleEmbeddedResource(slideNumber, stream, objID, objID, mediaType, xhtml, false);
-                        }
-                    } catch (IOException e) {
-                        EmbeddedDocumentUtil.recordEmbeddedStreamException(e, parentMetadata);
-                    }
+                    handleDataStream(slideNumber, dataStream, objID, oleShape.getProgId(), xhtml);
                 }
             }
-            // Handling of images links in corresponding slide 
+            // Handling of images links in corresponding slide
             else if (shape instanceof HSLFPictureShape) {
                 handleSlideEmbeddedPictureObject(slideNumber, shape, xhtml);
             }
+        }
+    }
+
+    private void handleDataStream(int slideNumber, InputStream dataStream, String objID, String progId,
+                                  XHTMLContentHandler xhtml) {
+        try (TikaInputStream stream = TikaInputStream.get(dataStream)) {
+            String mediaType = null;
+            if ("Excel.Chart.8".equals(progId)) {
+                mediaType = "application/vnd.ms-excel";
+            } else {
+                MediaType mt =
+                        getTikaConfig().getDetector().detect(stream, new Metadata());
+                mediaType = mt.toString();
+            }
+            if (mediaType
+                    .equals("application/x-tika-msoffice-embedded; format=comp_obj") ||
+                    mediaType.equals("application/x-tika-msoffice")) {
+                POIFSFileSystem poifs = new POIFSFileSystem(new CloseShieldInputStream(stream));
+
+                try {
+                    handleEmbeddedOfficeDoc(poifs.getRoot(), objID, xhtml, false);
+                } finally {
+                    if (poifs != null) {
+                        poifs.close();
+                    }
+                }
+            } else {
+                handleEmbeddedResource(slideNumber, stream, objID, objID, mediaType, xhtml, false);
+            }
+        } catch (SecurityException e) {
+            throw e;
+        } catch (Exception e) {
+            EmbeddedDocumentUtil.recordException(e, parentMetadata);
         }
     }
 
@@ -659,7 +657,7 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
         try {
             imgdata = img.getPictureData();
         } catch (NullPointerException e) {
-            /* getObjectData throws NPE some times. */
+            /* getObjectData throws NPE sometimes. */
             EmbeddedDocumentUtil.recordEmbeddedStreamException(e, parentMetadata);
             return;
         }
@@ -678,7 +676,7 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
                     String ext = getTikaConfig().getMimeRepository().forName(imgdata.getContentType()).getExtension();
 //                    attributes.addAttribute("", "src", "src", "CDATA", officeParserConfig.getImageFilename
 //                    (slideNumber,imgdata.getIndex(),ext));
-                    attributes.addAttribute("", "src", "src", "CDATA", officeParserConfig.getImageFilename(0,
+                    attributes.addAttribute("", "src", "src", "CDATA", officeParserConfig.getImageFilename(slideNumber,
                             imgdata.getIndex(), ext));
 
                 }

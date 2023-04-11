@@ -16,8 +16,6 @@
  */
 package org.apache.tika.parser.microsoft;
 
-import static org.apache.poi.hssf.model.InternalWorkbook.WORKBOOK_DIR_ENTRY_NAMES;
-
 import java.awt.Point;
 import java.io.IOException;
 import java.text.NumberFormat;
@@ -37,6 +35,7 @@ import org.apache.poi.hssf.eventusermodel.HSSFEventFactory;
 import org.apache.poi.hssf.eventusermodel.HSSFListener;
 import org.apache.poi.hssf.eventusermodel.HSSFRequest;
 import org.apache.poi.hssf.extractor.OldExcelExtractor;
+import org.apache.poi.hssf.model.InternalWorkbook;
 import org.apache.poi.hssf.record.BOFRecord;
 import org.apache.poi.hssf.record.BoundSheetRecord;
 import org.apache.poi.hssf.record.CellValueRecordInterface;
@@ -117,7 +116,7 @@ public class ExcelExtractor extends AbstractPOIFSExtractor {
      * @return workbook entry or null
      */
     private static String findWorkbookEntry(DirectoryNode root) {
-        for (String workbookDirEntryName : WORKBOOK_DIR_ENTRY_NAMES) {
+        for (String workbookDirEntryName : InternalWorkbook.WORKBOOK_DIR_ENTRY_NAMES) {
             if (root.hasEntry(workbookDirEntryName)) {
                 return workbookDirEntryName;
             }
@@ -193,7 +192,7 @@ public class ExcelExtractor extends AbstractPOIFSExtractor {
         for (Entry entry : root) {
             if (entry.getName().startsWith("MBD") && entry instanceof DirectoryEntry) {
                 try {
-                    handleEmbeddedOfficeDoc((DirectoryEntry) entry, xhtml);
+                    handleEmbeddedOfficeDoc((DirectoryEntry) entry, xhtml, true);
                 } catch (TikaException e) {
                     // ignore parse errors from embedded documents
                 }
