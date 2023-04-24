@@ -55,6 +55,8 @@ import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.parser.ParseContext;
+import org.apache.tika.parser.pdf.image.ImageGraphicsEngine;
+import org.apache.tika.parser.pdf.image.ImageGraphicsEngineFactory;
 import org.apache.tika.parser.pdf.statistics.PDFStatistics;
 import org.apache.tika.sax.EmbeddedContentHandler;
 
@@ -278,7 +280,8 @@ class PDF2XHTML extends AbstractPDF2XHTML {
         }
 
         // Create a Graphics Engine
-        ImageGraphicsEngine engine = new ImageGraphicsEngine(page, embeddedDocumentExtractor, config,
+        ImageGraphicsEngineFactory factory = new ImageGraphicsEngineFactory();
+        ImageGraphicsEngine engine = factory.newEngine(page,pageIndex + 1, embeddedDocumentExtractor, config,
                 processedInlineImages, inlineImageCounter, xhtml, metadata, context);
 
         PDFStatistics stats = engine.runStatistics();

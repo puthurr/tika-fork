@@ -24,15 +24,14 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.commons.io.output.UnsynchronizedByteArrayOutputStream;
 import org.apache.pdfbox.contentstream.PDFGraphicsStreamEngine;
 import org.apache.pdfbox.cos.COSName;
 import org.apache.pdfbox.cos.COSStream;
-import org.apache.pdfbox.filter.MissingImageReaderException;
 import org.apache.pdfbox.io.IOUtils;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDResources;
@@ -53,21 +52,19 @@ import org.apache.pdfbox.tools.imageio.ImageIOUtil;
 import org.apache.pdfbox.util.Matrix;
 import org.apache.pdfbox.util.Vector;
 import org.xml.sax.SAXException;
-import org.xml.sax.helpers.AttributesImpl;
 
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.exception.TikaMemoryLimitException;
 import org.apache.tika.exception.ZeroByteFileException;
 import org.apache.tika.extractor.EmbeddedDocumentExtractor;
-import org.apache.tika.extractor.EmbeddedDocumentUtil;
 import org.apache.tika.io.BoundedInputStream;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
-import org.apache.tika.metadata.TikaPagedText;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.pdf.PDFParserConfig;
 import org.apache.tika.parser.pdf.PDMetadataExtractor;
+import org.apache.tika.parser.pdf.statistics.PDFStatistics;
 import org.apache.tika.sax.EmbeddedContentHandler;
 import org.apache.tika.sax.XHTMLContentHandler;
 
@@ -100,7 +97,12 @@ public class ImageGraphicsEngine extends PDFGraphicsStreamEngine {
     protected final ParseContext parseContext;
     protected final boolean extractInlineImageMetadataOnly;
     //TODO: parameterize this ?
-    protected boolean useDirectJPEG = false;
+    public static boolean useDirectJPEG = false;
+
+    // PUTHURR
+    private Map<PDImage, Integer> extractedImages;
+    private boolean statisticsRun = false;
+    private PDFStatistics stats = new PDFStatistics();
 
     //TODO: this is an embarrassment of an initializer...fix
     protected ImageGraphicsEngine(PDPage page,
@@ -120,10 +122,42 @@ public class ImageGraphicsEngine extends PDFGraphicsStreamEngine {
         this.parentMetadata = parentMetadata;
         this.parseContext = parseContext;
         this.extractInlineImageMetadataOnly = pdfParserConfig.isExtractInlineImageMetadataOnly();
+
+        // PUTHURR
+        this.extractedImages = new HashMap<>();
     }
 
+    /**
+     * @return statistics representing the presence of certain type of objects in a page
+     * @throws IOException
+     */
+    public PDFStatistics runStatistics() throws IOException {
+        setStatisticsRun(true);
+        run();
+        return stats;
+    }
+
+    /**
+     * Extract all Images from a PDF Page
+     *
+     * @throws IOException
+     */
+    public Map<PDImage, Integer> imagesExtractionRun() throws IOException {
+        setStatisticsRun(false);
+        return run();
+    }
+
+    public boolean isStatisticsRun() {
+        return statisticsRun;
+    }
+
+    public void setStatisticsRun(boolean statisticsRun) {
+        this.statisticsRun = statisticsRun;
+    }
+
+    // PUTHURR made static
     //nearly directly copied from PDFBox ExtractImages
-    protected BufferedImage writeToBuffer(PDImage pdImage, String suffix, boolean directJPEG,
+    public static BufferedImage writeToBuffer(PDImage pdImage, String suffix, boolean directJPEG,
                                       OutputStream out) throws IOException, TikaException {
 
         if ("jpg".equals(suffix)) {
@@ -227,7 +261,7 @@ public class ImageGraphicsEngine extends PDFGraphicsStreamEngine {
         return false;
     }
 
-    public void run() throws IOException {
+    public Map<PDImage, Integer> run() throws IOException {
         PDPage page = getPage();
 
         //TODO: is there a better way to do this rather than reprocessing the page
@@ -235,7 +269,7 @@ public class ImageGraphicsEngine extends PDFGraphicsStreamEngine {
         processPage(page);
         PDResources res = page.getResources();
         if (res == null) {
-            return;
+            return null;
         }
 
         for (COSName name : res.getExtGStateNames()) {
@@ -259,10 +293,22 @@ public class ImageGraphicsEngine extends PDFGraphicsStreamEngine {
                 }
             }
         }
+        return extractedImages;
     }
 
     @Override
     public void drawImage(PDImage pdImage) throws IOException {
+        if (isStatisticsRun()) {
+            stats.incrementImageCounter();
+
+            // Specific to JB2 images
+            if (pdImage.getSuffix().equals("jb2")) {
+                stats.incrementJB2Counter();
+            }
+
+            return;
+        }
+
         int imageNumber = 0;
         if (pdImage instanceof PDImageXObject) {
             if (pdImage.isStencil()) {
@@ -283,21 +329,29 @@ public class ImageGraphicsEngine extends PDFGraphicsStreamEngine {
         } else {
             imageNumber = imageCounter.getAndIncrement();
         }
-        //TODO: should we use the hash of the PDImage to check for seen
-        //For now, we're relying on the cosobject, but this could lead to
-        //duplicates if the pdImage is not a PDImageXObject?
-        try {
-            processImage(pdImage, imageNumber);
-        } catch (TikaException | SAXException e) {
-            throw new IOException(e);
-        } catch (IOException e) {
-            handleCatchableIOE(e);
-        }
+//        //TODO: should we use the hash of the PDImage to check for seen
+//        //For now, we're relying on the cosobject, but this could lead to
+//        //duplicates if the pdImage is not a PDImageXObject?
+//        try {
+//            processImage(pdImage, imageNumber);
+//        } catch (TikaException|SAXException e) {
+//            throw new IOExceptionWithCause(e);
+//        } catch (IOException e) {
+//            handleCatchableIOE(e);
+//        }
+        extractedImages.put(pdImage, imageNumber);
     }
 
     @Override
-    public void appendRectangle(Point2D p0, Point2D p1, Point2D p2, Point2D p3) throws IOException {
-
+    public void appendRectangle(Point2D p0, Point2D p1, Point2D p2, Point2D p3)
+            throws IOException {
+        if (Math.floor(p0.getY()) == 0.0 && (Math.floor(p0.getX()) == 0.0)
+                && (Math.floor(p1.getY()) == 0.0)
+                && (Math.floor(p3.getX()) == 0.0)) {
+            //Do Nothing
+        } else {
+            stats.incrementGraphicCounter(10000);
+        }
     }
 
     @Override
@@ -318,7 +372,8 @@ public class ImageGraphicsEngine extends PDFGraphicsStreamEngine {
     @Override
     public void curveTo(float x1, float y1, float x2, float y2, float x3, float y3)
             throws IOException {
-
+        // A Curve could be considered as a graphical element used to annotate an image.
+        stats.incrementGraphicCounter(100000);
     }
 
     @Override
@@ -382,61 +437,62 @@ public class ImageGraphicsEngine extends PDFGraphicsStreamEngine {
         }
     }
 
-    protected void processImage(PDImage pdImage, int imageNumber)
-            throws IOException, TikaException, SAXException {
-        //this is the metadata for this particular image
-        Metadata metadata = new Metadata();
-        String suffix = getSuffix(pdImage, metadata);
-        String fileName = "image" + imageNumber + "." + suffix;
-
-
-        AttributesImpl attr = new AttributesImpl();
-        attr.addAttribute("", "src", "src", "CDATA", "embedded:" + fileName);
-        attr.addAttribute("", "alt", "alt", "CDATA", fileName);
-        xhtml.startElement("img", attr);
-        xhtml.endElement("img");
-
-
-        metadata.set(TikaCoreProperties.RESOURCE_NAME_KEY, fileName);
-        metadata.set(TikaCoreProperties.EMBEDDED_RESOURCE_TYPE,
-                TikaCoreProperties.EmbeddedResourceType.INLINE.toString());
-        metadata.set(TikaPagedText.PAGE_NUMBER, pageNumber);
-
-        //TODO -- should we look for image rotation metadata in the PDImage or elsewhere?
-
-        if (extractInlineImageMetadataOnly) {
-            extractInlineImageMetadataOnly(pdImage, metadata);
-            return;
-        }
-
-        if (embeddedDocumentExtractor.shouldParseEmbedded(metadata)) {
-            UnsynchronizedByteArrayOutputStream buffer = new UnsynchronizedByteArrayOutputStream();
-            if (pdImage instanceof PDImageXObject) {
-                //extract the metadata contained outside of the image
-                PDMetadataExtractor
-                        .extract(((PDImageXObject) pdImage).getMetadata(), metadata, parseContext);
-            }
-            BufferedImage bufferedImage = null;
-            try {
-                bufferedImage = writeToBuffer(pdImage, suffix, useDirectJPEG, buffer);
-            } catch (MissingImageReaderException e) {
-                EmbeddedDocumentUtil.recordException(e, parentMetadata);
-                return;
-            } catch (IOException e) {
-                EmbeddedDocumentUtil.recordEmbeddedStreamException(e, metadata);
-                return;
-            }
-            try (TikaInputStream tis = TikaInputStream.get(buffer.toByteArray())) {
-                if (bufferedImage != null) {
-                    tis.setOpenContainer(bufferedImage);
-                }
-                embeddedDocumentExtractor
-                        .parseEmbedded(tis, new EmbeddedContentHandler(xhtml), metadata,
-                                false);
-            }
-        }
-
-    }
+    // PUTHURR
+//    protected void processImage(PDImage pdImage, int imageNumber)
+//            throws IOException, TikaException, SAXException {
+//        //this is the metadata for this particular image
+//        Metadata metadata = new Metadata();
+//        String suffix = getSuffix(pdImage, metadata);
+//        String fileName = "image" + imageNumber + "." + suffix;
+//
+//
+//        AttributesImpl attr = new AttributesImpl();
+//        attr.addAttribute("", "src", "src", "CDATA", "embedded:" + fileName);
+//        attr.addAttribute("", "alt", "alt", "CDATA", fileName);
+//        xhtml.startElement("img", attr);
+//        xhtml.endElement("img");
+//
+//
+//        metadata.set(TikaCoreProperties.RESOURCE_NAME_KEY, fileName);
+//        metadata.set(TikaCoreProperties.EMBEDDED_RESOURCE_TYPE,
+//                TikaCoreProperties.EmbeddedResourceType.INLINE.toString());
+//        metadata.set(TikaPagedText.PAGE_NUMBER, pageNumber);
+//
+//        //TODO -- should we look for image rotation metadata in the PDImage or elsewhere?
+//
+//        if (extractInlineImageMetadataOnly) {
+//            extractInlineImageMetadataOnly(pdImage, metadata);
+//            return;
+//        }
+//
+//        if (embeddedDocumentExtractor.shouldParseEmbedded(metadata)) {
+//            UnsynchronizedByteArrayOutputStream buffer = new UnsynchronizedByteArrayOutputStream();
+//            if (pdImage instanceof PDImageXObject) {
+//                //extract the metadata contained outside of the image
+//                PDMetadataExtractor
+//                        .extract(((PDImageXObject) pdImage).getMetadata(), metadata, parseContext);
+//            }
+//            BufferedImage bufferedImage = null;
+//            try {
+//                bufferedImage = writeToBuffer(pdImage, suffix, useDirectJPEG, buffer);
+//            } catch (MissingImageReaderException e) {
+//                EmbeddedDocumentUtil.recordException(e, parentMetadata);
+//                return;
+//            } catch (IOException e) {
+//                EmbeddedDocumentUtil.recordEmbeddedStreamException(e, metadata);
+//                return;
+//            }
+//            try (TikaInputStream tis = TikaInputStream.get(buffer.toByteArray())) {
+//                if (bufferedImage != null) {
+//                    tis.setOpenContainer(bufferedImage);
+//                }
+//                embeddedDocumentExtractor
+//                        .parseEmbedded(tis, new EmbeddedContentHandler(xhtml), metadata,
+//                                false);
+//            }
+//        }
+//
+//    }
 
     protected void extractInlineImageMetadataOnly(PDImage pdImage, Metadata metadata)
             throws IOException, SAXException {
@@ -460,15 +516,27 @@ public class ImageGraphicsEngine extends PDFGraphicsStreamEngine {
         }
     }
 
-    protected String getSuffix(PDImage pdImage, Metadata metadata) throws IOException {
-        String suffix = pdImage.getSuffix();
+    public static String getSuffix(PDImage pdImage, Metadata metadata) throws IOException {
+        if (hasMasks(pdImage)) {
+            // TIKA-3040, PDFBOX-4771: can't save ARGB as JPEG
+            metadata.set(Metadata.CONTENT_TYPE, "image/png");
+            return "png";
+        }
+        return getSuffix(pdImage.getSuffix(), metadata);
+    }
 
+    public static String getSuffix(String suffix, Metadata metadata) throws IOException {
         if (suffix == null || suffix.equals("png")) {
             metadata.set(Metadata.CONTENT_TYPE, "image/png");
             suffix = "png";
         } else if (suffix.equals("jpg")) {
             metadata.set(Metadata.CONTENT_TYPE, "image/jpeg");
+        } else if (suffix.equals("jpeg")) {
+            metadata.set(Metadata.CONTENT_TYPE, "image/jpeg");
         } else if (suffix.equals("tiff")) {
+            metadata.set(Metadata.CONTENT_TYPE, "image/tiff");
+            suffix = "tif";
+        } else if (suffix.equals("tif")) {
             metadata.set(Metadata.CONTENT_TYPE, "image/tiff");
             suffix = "tif";
         } else if (suffix.equals("jpx")) {
@@ -477,14 +545,11 @@ public class ImageGraphicsEngine extends PDFGraphicsStreamEngine {
             suffix = "jp2";
         } else if (suffix.equals("jb2")) {
             //PDFBox resets suffix to png when image's suffix == jb2
-            metadata.set(Metadata.CONTENT_TYPE, "image/x-jbig2");
+            metadata.set(
+                    Metadata.CONTENT_TYPE, "image/x-jbig2");
         } else {
             //TODO: determine if we need to add more image types
 //                    throw new RuntimeException("EXTEN:" + extension);
-        }
-        if (hasMasks(pdImage)) {
-            // TIKA-3040, PDFBOX-4771: can't save ARGB as JPEG
-            suffix = "png";
         }
         return suffix;
     }
