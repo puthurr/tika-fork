@@ -1,3 +1,7 @@
+Release 2.7.0-20230704 - 07/04/2023
+
+   * Azure server resource to support Managed Identity authentication.
+
 Release 2.7.0 - 1/31/2023
 
    * Add SVG detection for svg files that lack the xml header (TIKA-3308).

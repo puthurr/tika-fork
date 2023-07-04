@@ -199,7 +199,7 @@ To build a specific project (for example, tika-server-standard):
 If the ossindex-maven-plugin is causing the build to fail because a dependency
 has now been discovered to have a vulnerability:
 
-    mvn clean install -Dossindex.skip
+    mvn clean install -Dossindex.skip -DskipTests
 
 
 Maven Dependencies

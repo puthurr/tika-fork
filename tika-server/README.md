@@ -94,7 +94,7 @@ HTTP Return Codes
 `422` - Unparsable document of known type (password protected documents and unsupported versions like Biff5 Excel)  
 `500` - Internal error  
 
-# Custom Apache Tika Server
+# Custom Apache Tika Server (PUTHURR)
 
 ## Additional dependencies added in Tika Server Standard POM 
 
@@ -185,7 +185,10 @@ Azure Storage SDK for Java is added POM Dependency
 
 ### Azure Global Settings
 
-#### Azure Blob Storage Connection - Environment Variable
+#### Azure Blob Storage Connection 
+
+##### Using Connection String
+
 Azure Blob connection string is taken from the environment variable **AZURE_STORAGE_CONNECTION_STRING**.
 
 Some documentation to help your knowledge on Azure Storage & Java
@@ -194,6 +197,20 @@ Some documentation to help your knowledge on Azure Storage & Java
 
 Once you have a connection string bound to the environment where your Tika server runs, we need to indicate the container and path where we want our resources to be unpacked.
 
+##### Using Managed Identity
+
+As from release 2.7.0-20230704, Azure storage authentication also supports Managed Identity. 
+
+You can configure Managed Identity authentication through using the following Environment Variables:
+
+- **AZURE_STORAGE_MI_ENABLED** : true or false. Indicate if the Azure Storage authentication requires MI or not.
+- **AZURE_STORAGE_CLIENT_ID** : if set, the client id (usually user-assigned identity) to access the storage with. 
+    If no client id is specified, the MI will fall back to system-managed identity. 
+- **AZURE_STORAGE_SERVICE_URI** : the blob service URI to connect to 
+
+- For Blob Storage, the Uri format is  "https://{{account-name}}data.blob.core.windows.net"
+- For Blob Storage with ADLS Gen2 (Lake), the Uri format is "https://{{account-name}}data.dfs.core.windows.net"
+
 #### Azure Blob Target Container - Header
 To specify which container is used to write all embedded resources to, send the header **X-TIKA-AZURE-CONTAINER** along with your azure-unpack query.
 
@@ -201,7 +218,8 @@ To specify which container is used to write all embedded resources to, send the 
 To specify which container directory to write all embedded resources to, send the header **X-TIKA-AZURE-CONTAINER-DIRECTORY** along with your azure-unpack query.
 
 #### Azure Blob Metadata - Header
-Our implementation supports adding blob metadata to each embedded resource. To your azure-unpack request, any header with the prefix  **X-TIKA-AZURE-META-** will end up in the user-defined blob properties.
+Our implementation supports adding blob metadata to each embedded resource. To your azure-unpack request, any header 
+with the prefix  **X-TIKA-AZURE-META-** will end up in the user-defined blob properties.
 
 Refer to the official documentation for limitations
 https://docs.microsoft.com/en-us/azure/storage/blobs/storage-blob-properties-metadata?tabs=dotnet
