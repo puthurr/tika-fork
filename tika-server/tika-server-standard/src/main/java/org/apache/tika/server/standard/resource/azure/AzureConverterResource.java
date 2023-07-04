@@ -41,7 +41,6 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 
 import com.azure.storage.blob.BlobContainerClient;
-import com.azure.storage.blob.BlobServiceClientBuilder;
 import com.azure.storage.blob.models.BlobStorageException;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
@@ -74,9 +73,7 @@ public class AzureConverterResource extends AbstractAzureResource implements Tik
     private final BaseParserConfig baseParserConfig = new BaseParserConfig();
 
     static {
-        if (connectStr != null) {
-            blobServiceClient = new BlobServiceClientBuilder().connectionString(connectStr).buildClient();
-        }
+        AcquireBlobServiceClient();
     }
 
     @Path("/pptx")

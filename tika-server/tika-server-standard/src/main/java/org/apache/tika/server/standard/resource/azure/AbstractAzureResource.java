@@ -22,6 +22,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import javax.ws.rs.core.MultivaluedMap;
 
+import com.azure.core.credential.TokenCredential;
+import com.azure.identity.DefaultAzureCredentialBuilder;
+import com.azure.identity.ManagedIdentityCredentialBuilder;
 import com.azure.storage.blob.BlobClient;
 import com.azure.storage.blob.BlobContainerClient;
 import com.azure.storage.blob.BlobServiceClient;
@@ -39,6 +42,10 @@ public class AbstractAzureResource {
     // AZURE
     protected static final String AZURE_STORAGE_CONNECTION_STRING = "AZURE_STORAGE_CONNECTION_STRING";
 
+    protected static final String AZURE_STORAGE_MI_ENABLED = "AZURE_STORAGE_MI_ENABLED";
+    protected static final String AZURE_STORAGE_CLIENT_ID = "AZURE_STORAGE_CLIENT_ID";
+    protected static final String AZURE_STORAGE_SERVICE_URI = "AZURE_STORAGE_SERVICE_URI";
+
     protected static final String AZURE_CONTAINER = "X-TIKA-AZURE-CONTAINER";
     protected static final String AZURE_CONTAINER_DIRECTORY = "X-TIKA-AZURE-CONTAINER-DIRECTORY";
     protected static final String AZURE_CONTAINER_DIRECTORY_BASE64ENCODED
@@ -51,7 +58,7 @@ public class AbstractAzureResource {
     // is created after the application is launched in a console or with
     // Visual Studio, the shell or application needs to be closed and reloaded
     // to take the environment variable into account.
-    protected static String connectStr = System.getenv(AZURE_STORAGE_CONNECTION_STRING);
+    private static String connectStr = System.getenv(AZURE_STORAGE_CONNECTION_STRING);
 
     /* Create a new BlobServiceClient with a connection string */
     protected static BlobServiceClient blobServiceClient;
@@ -66,14 +73,31 @@ public class AbstractAzureResource {
 
     protected final Tika tikaDetector = new Tika();
 
-    protected void AcquireBlobServiceClient()
+    protected static void AcquireBlobServiceClient()
     {
-        if (connectStr != null) {
+        boolean isManagedIdentityEnabled = Boolean.parseBoolean(System.getenv(AZURE_STORAGE_MI_ENABLED) != null ?
+                System.getenv(AZURE_STORAGE_MI_ENABLED) : "false");
+
+        if (isManagedIdentityEnabled) {
+            TokenCredential defaultCredential = new DefaultAzureCredentialBuilder().build();
+
+            String clientId = System.getenv(AZURE_STORAGE_CLIENT_ID);
+            if (clientId != null)
+            {
+                defaultCredential = new ManagedIdentityCredentialBuilder()
+                        .clientId(clientId) // only required for user assigned
+                        .build();
+            }
+            String serviceUri = System.getenv(AZURE_STORAGE_SERVICE_URI);
+            blobServiceClient = new BlobServiceClientBuilder()
+                    .endpoint(serviceUri)
+                    .credential(defaultCredential)
+                    .buildClient();
+        } else if (connectStr != null) {
             blobServiceClient = new BlobServiceClientBuilder()
                     .connectionString(connectStr)
                     .buildClient();
         }
-
     }
 
     protected BlobContainerClient AcquireBlobContainerClient(String containerName) throws BlobStorageException

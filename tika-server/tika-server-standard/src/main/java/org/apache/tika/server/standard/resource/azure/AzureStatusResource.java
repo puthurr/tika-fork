@@ -89,7 +89,6 @@ public class AzureStatusResource extends AbstractAzureResource implements TikaSe
             {
                 h.append("<p>");
                 h.append("<strong>Blob Service Client is null...</strong>");
-                h.append(connectStr);
                 h.append("</p>");
             }
             else

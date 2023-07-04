@@ -41,7 +41,6 @@ import javax.ws.rs.core.UriInfo;
 
 import com.azure.storage.blob.BlobClient;
 import com.azure.storage.blob.BlobContainerClient;
-import com.azure.storage.blob.BlobServiceClientBuilder;
 import com.azure.storage.blob.models.BlobHttpHeaders;
 import com.azure.storage.blob.models.BlobStorageException;
 import com.azure.storage.blob.models.ParallelTransferOptions;
@@ -82,11 +81,7 @@ public class AzureUnpackerResource extends AbstractAzureResource implements Tika
     private static final Logger LOG = LoggerFactory.getLogger(AzureUnpackerResource.class);
 
     static {
-        if (connectStr != null) {
-            blobServiceClient = new BlobServiceClientBuilder()
-                    .connectionString(connectStr)
-                    .buildClient();
-        }
+        AcquireBlobServiceClient();
     }
 
     @Path("/{id:(/.*)?}")
